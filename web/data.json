@@ -1,0 +1,741 @@
+{
+  "program_name": "func_v14_2824",
+  "num_registers": 4,
+  "instructions": [
+    "L00: v0 = const_4",
+    "L01: v1 = const_32",
+    "L02: v2 = const_18",
+    "L03: MOVE v8 <- v1",
+    "L04: MOVE v0 <- v1",
+    "L_loop_start_0:",
+    "L06: v8 = v3 - const_1",
+    "L07: IF v8 == const_1 GOTO L_loop_end_0",
+    "L08: v0 = v8 * v3",
+    "L09: v10 = v11 - v8",
+    "L10: v3 = v7 - v9",
+    "L11: v12 = v13 + v0",
+    "L12: JUMP L_loop_start_0",
+    "L_loop_end_0:",
+    "L14: MOVE v5 <- v4",
+    "L_loop_start_1:",
+    "L16: v5 = v12 - const_1",
+    "L17: IF v5 == const_1 GOTO L_loop_end_1",
+    "L18: v1 = v6 - v1",
+    "L19: v13 = v5 - v9",
+    "L20: JUMP L_loop_start_1",
+    "L_loop_end_1:",
+    "L22: v11 = v7 + v8",
+    "L23: v6 = v1 - v8",
+    "L24: v9 = v13 * v5",
+    "L25: MOVE v1 <- v0",
+    "L26: MOVE v12 <- v4",
+    "L27: v13 = v3 + v13",
+    "L28: MOVE v7 <- v11",
+    "L29: v2 = v5 + v5",
+    "L30: MOVE v11 <- v10",
+    "L31: RETURN v10"
+  ],
+  "cfg_blocks": [
+    {
+      "block_id": 0,
+      "label": null,
+      "loop_depth": 0,
+      "instructions": [
+        "L00: v0 = const_4",
+        "L01: v1 = const_32",
+        "L02: v2 = const_18",
+        "L03: MOVE v8 <- v1",
+        "L04: MOVE v0 <- v1"
+      ],
+      "successors": [
+        1
+      ]
+    },
+    {
+      "block_id": 1,
+      "label": "L_loop_start_0",
+      "loop_depth": 1,
+      "instructions": [
+        "L_loop_start_0:",
+        "L06: v8 = v3 - const_1",
+        "L07: IF v8 == const_1 GOTO L_loop_end_0"
+      ],
+      "successors": [
+        2,
+        3
+      ]
+    },
+    {
+      "block_id": 2,
+      "label": null,
+      "loop_depth": 1,
+      "instructions": [
+        "L08: v0 = v8 * v3",
+        "L09: v10 = v11 - v8",
+        "L10: v3 = v7 - v9",
+        "L11: v12 = v13 + v0",
+        "L12: JUMP L_loop_start_0"
+      ],
+      "successors": [
+        1
+      ]
+    },
+    {
+      "block_id": 3,
+      "label": "L_loop_end_0",
+      "loop_depth": 0,
+      "instructions": [
+        "L_loop_end_0:",
+        "L14: MOVE v5 <- v4"
+      ],
+      "successors": [
+        4
+      ]
+    },
+    {
+      "block_id": 4,
+      "label": "L_loop_start_1",
+      "loop_depth": 1,
+      "instructions": [
+        "L_loop_start_1:",
+        "L16: v5 = v12 - const_1",
+        "L17: IF v5 == const_1 GOTO L_loop_end_1"
+      ],
+      "successors": [
+        5,
+        6
+      ]
+    },
+    {
+      "block_id": 5,
+      "label": null,
+      "loop_depth": 1,
+      "instructions": [
+        "L18: v1 = v6 - v1",
+        "L19: v13 = v5 - v9",
+        "L20: JUMP L_loop_start_1"
+      ],
+      "successors": [
+        4
+      ]
+    },
+    {
+      "block_id": 6,
+      "label": "L_loop_end_1",
+      "loop_depth": 0,
+      "instructions": [
+        "L_loop_end_1:",
+        "L22: v11 = v7 + v8",
+        "L23: v6 = v1 - v8",
+        "L24: v9 = v13 * v5",
+        "L25: MOVE v1 <- v0",
+        "L26: MOVE v12 <- v4",
+        "L27: v13 = v3 + v13",
+        "L28: MOVE v7 <- v11",
+        "L29: v2 = v5 + v5",
+        "L30: MOVE v11 <- v10",
+        "L31: RETURN v10"
+      ],
+      "successors": []
+    }
+  ],
+  "nodes": [
+    {
+      "id": "v0",
+      "spill_cost": 23.0,
+      "loop_depth": 1,
+      "degree": 12,
+      "move_degree": 1,
+      "gnn_assignment": "R2",
+      "cb_assignment": "R3"
+    },
+    {
+      "id": "v1",
+      "spill_cost": 15.0,
+      "loop_depth": 1,
+      "degree": 13,
+      "move_degree": 2,
+      "gnn_assignment": "SPILL",
+      "cb_assignment": "SPILL"
+    },
+    {
+      "id": "v2",
+      "spill_cost": 2.0,
+      "loop_depth": 0,
+      "degree": 10,
+      "move_degree": 0,
+      "gnn_assignment": "R2",
+      "cb_assignment": "R0"
+    },
+    {
+      "id": "v3",
+      "spill_cost": 31.0,
+      "loop_depth": 1,
+      "degree": 13,
+      "move_degree": 0,
+      "gnn_assignment": "R0",
+      "cb_assignment": "R2"
+    },
+    {
+      "id": "v4",
+      "spill_cost": 2.0,
+      "loop_depth": 0,
+      "degree": 12,
+      "move_degree": 2,
+      "gnn_assignment": "R1",
+      "cb_assignment": "SPILL"
+    },
+    {
+      "id": "v5",
+      "spill_cost": 33.0,
+      "loop_depth": 1,
+      "degree": 12,
+      "move_degree": 1,
+      "gnn_assignment": "SPILL",
+      "cb_assignment": "R1"
+    },
+    {
+      "id": "v6",
+      "spill_cost": 11.0,
+      "loop_depth": 1,
+      "degree": 11,
+      "move_degree": 0,
+      "gnn_assignment": "SPILL",
+      "cb_assignment": "SPILL"
+    },
+    {
+      "id": "v7",
+      "spill_cost": 12.0,
+      "loop_depth": 1,
+      "degree": 9,
+      "move_degree": 1,
+      "gnn_assignment": "R1",
+      "cb_assignment": "SPILL"
+    },
+    {
+      "id": "v8",
+      "spill_cost": 43.0,
+      "loop_depth": 1,
+      "degree": 12,
+      "move_degree": 1,
+      "gnn_assignment": "SPILL",
+      "cb_assignment": "R0"
+    },
+    {
+      "id": "v9",
+      "spill_cost": 21.0,
+      "loop_depth": 1,
+      "degree": 11,
+      "move_degree": 0,
+      "gnn_assignment": "SPILL",
+      "cb_assignment": "SPILL"
+    },
+    {
+      "id": "v10",
+      "spill_cost": 12.0,
+      "loop_depth": 1,
+      "degree": 13,
+      "move_degree": 1,
+      "gnn_assignment": "SPILL",
+      "cb_assignment": "SPILL"
+    },
+    {
+      "id": "v11",
+      "spill_cost": 13.0,
+      "loop_depth": 1,
+      "degree": 12,
+      "move_degree": 2,
+      "gnn_assignment": "SPILL",
+      "cb_assignment": "SPILL"
+    },
+    {
+      "id": "v12",
+      "spill_cost": 21.0,
+      "loop_depth": 1,
+      "degree": 13,
+      "move_degree": 1,
+      "gnn_assignment": "R3",
+      "cb_assignment": "SPILL"
+    },
+    {
+      "id": "v13",
+      "spill_cost": 22.0,
+      "loop_depth": 1,
+      "degree": 13,
+      "move_degree": 0,
+      "gnn_assignment": "SPILL",
+      "cb_assignment": "SPILL"
+    }
+  ],
+  "interference_edges": [
+    {
+      "source": "v11",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v3",
+      "type": "interference"
+    },
+    {
+      "source": "v3",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v13",
+      "target": "v3",
+      "type": "interference"
+    },
+    {
+      "source": "v3",
+      "target": "v5",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v2",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v8",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v6",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v2",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v12",
+      "target": "v7",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v5",
+      "type": "interference"
+    },
+    {
+      "source": "v13",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v5",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v7",
+      "type": "interference"
+    },
+    {
+      "source": "v12",
+      "target": "v4",
+      "type": "interference"
+    },
+    {
+      "source": "v3",
+      "target": "v7",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v11",
+      "target": "v5",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v5",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v13",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v5",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v3",
+      "target": "v4",
+      "type": "interference"
+    },
+    {
+      "source": "v12",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v12",
+      "target": "v13",
+      "type": "interference"
+    },
+    {
+      "source": "v13",
+      "target": "v2",
+      "type": "interference"
+    },
+    {
+      "source": "v11",
+      "target": "v13",
+      "type": "interference"
+    },
+    {
+      "source": "v11",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v7",
+      "type": "interference"
+    },
+    {
+      "source": "v3",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v10",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v11",
+      "type": "interference"
+    },
+    {
+      "source": "v4",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v4",
+      "type": "interference"
+    },
+    {
+      "source": "v2",
+      "target": "v7",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v7",
+      "type": "interference"
+    },
+    {
+      "source": "v13",
+      "target": "v7",
+      "type": "interference"
+    },
+    {
+      "source": "v5",
+      "target": "v7",
+      "type": "interference"
+    },
+    {
+      "source": "v11",
+      "target": "v4",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v10",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v5",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v4",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v13",
+      "type": "interference"
+    },
+    {
+      "source": "v4",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v13",
+      "target": "v5",
+      "type": "interference"
+    },
+    {
+      "source": "v4",
+      "target": "v5",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v11",
+      "type": "interference"
+    },
+    {
+      "source": "v12",
+      "target": "v3",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v1",
+      "type": "interference"
+    },
+    {
+      "source": "v11",
+      "target": "v12",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v13",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v12",
+      "type": "interference"
+    },
+    {
+      "source": "v2",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v13",
+      "type": "interference"
+    },
+    {
+      "source": "v11",
+      "target": "v3",
+      "type": "interference"
+    },
+    {
+      "source": "v10",
+      "target": "v3",
+      "type": "interference"
+    },
+    {
+      "source": "v5",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v12",
+      "target": "v2",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v11",
+      "type": "interference"
+    },
+    {
+      "source": "v11",
+      "target": "v2",
+      "type": "interference"
+    },
+    {
+      "source": "v12",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v2",
+      "target": "v4",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v12",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v4",
+      "type": "interference"
+    },
+    {
+      "source": "v13",
+      "target": "v4",
+      "type": "interference"
+    },
+    {
+      "source": "v11",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v3",
+      "type": "interference"
+    },
+    {
+      "source": "v3",
+      "target": "v9",
+      "type": "interference"
+    },
+    {
+      "source": "v12",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v0",
+      "target": "v12",
+      "type": "interference"
+    },
+    {
+      "source": "v12",
+      "target": "v5",
+      "type": "interference"
+    },
+    {
+      "source": "v13",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v7",
+      "target": "v8",
+      "type": "interference"
+    },
+    {
+      "source": "v1",
+      "target": "v2",
+      "type": "interference"
+    },
+    {
+      "source": "v4",
+      "target": "v6",
+      "type": "interference"
+    },
+    {
+      "source": "v2",
+      "target": "v3",
+      "type": "interference"
+    }
+  ],
+  "coalescing_edges": [
+    {
+      "source": "v11",
+      "target": "v7",
+      "type": "coalescing"
+    },
+    {
+      "source": "v1",
+      "target": "v8",
+      "type": "coalescing"
+    },
+    {
+      "source": "v12",
+      "target": "v4",
+      "type": "coalescing"
+    },
+    {
+      "source": "v0",
+      "target": "v1",
+      "type": "coalescing"
+    },
+    {
+      "source": "v10",
+      "target": "v11",
+      "type": "coalescing"
+    },
+    {
+      "source": "v4",
+      "target": "v5",
+      "type": "coalescing"
+    }
+  ],
+  "cb_coalesced_pairs": [],
+  "cb_spills": [
+    "v10",
+    "v12",
+    "v1",
+    "v11",
+    "v6",
+    "v9",
+    "v7",
+    "v4",
+    "v13"
+  ],
+  "gnn_spills": [
+    "v1",
+    "v10",
+    "v13",
+    "v5",
+    "v8",
+    "v11",
+    "v6",
+    "v9"
+  ]
+}
