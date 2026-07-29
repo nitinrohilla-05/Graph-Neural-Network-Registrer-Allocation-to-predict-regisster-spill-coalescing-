@@ -6,6 +6,7 @@ Supports both in-memory compiler objects and raw JSON file datasets (Phase 2.5 s
 
 import json
 import os
+import random
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
 import numpy as np
@@ -16,7 +17,98 @@ from compiler.ir import Program
 from compiler.cfg import ControlFlowGraph
 from compiler.liveness import LivenessAnalyzer
 from compiler.interference_graph import InterferenceGraph
-from compiler.chaitin_briggs import AllocationResult
+from compiler.chaitin_briggs import AllocationResult, canonicalize_register_assignment, variable_order_from_program
+
+
+RawSample = Tuple[Program, ControlFlowGraph, LivenessAnalyzer, InterferenceGraph, AllocationResult]
+NormalizationStats = Dict[str, List[float]]
+
+
+def split_raw_samples(
+    raw_samples: List[RawSample],
+    train_ratio: float = 0.70,
+    val_ratio: float = 0.15,
+    test_ratio: float = 0.15,
+    seed: int = 42
+) -> Tuple[List[RawSample], List[RawSample], List[RawSample]]:
+    """Deterministically splits raw generated samples into train/validation/test partitions."""
+    if not np.isclose(train_ratio + val_ratio + test_ratio, 1.0):
+        raise ValueError("train_ratio, val_ratio, and test_ratio must sum to 1.0")
+    if min(train_ratio, val_ratio, test_ratio) < 0:
+        raise ValueError("split ratios must be non-negative")
+
+    n_samples = len(raw_samples)
+    indices = list(range(n_samples))
+    rng = random.Random(seed)
+    rng.shuffle(indices)
+
+    if n_samples >= 3:
+        n_train = max(1, int(round(n_samples * train_ratio)))
+        n_val = max(1, int(round(n_samples * val_ratio)))
+        n_test = max(1, n_samples - n_train - n_val)
+
+        while n_train + n_val + n_test > n_samples:
+            if n_train >= n_val and n_train >= n_test and n_train > 1:
+                n_train -= 1
+            elif n_test >= n_val and n_test > 1:
+                n_test -= 1
+            elif n_val > 1:
+                n_val -= 1
+            else:
+                break
+        while n_train + n_val + n_test < n_samples:
+            n_train += 1
+    else:
+        n_train = n_samples
+        n_val = 0
+        n_test = 0
+
+    train_idx = indices[:n_train]
+    val_idx = indices[n_train:n_train + n_val]
+    test_idx = indices[n_train + n_val:n_train + n_val + n_test]
+
+    return (
+        [raw_samples[i] for i in train_idx],
+        [raw_samples[i] for i in val_idx],
+        [raw_samples[i] for i in test_idx],
+    )
+
+
+def compute_feature_normalization_stats(
+    samples: List["GraphDataSample"],
+    feature_dim: int = 6
+) -> NormalizationStats:
+    """Computes z-score stats over all nodes in a dataset split."""
+    feature_rows = [sample.node_features for sample in samples if sample.node_features.numel() > 0]
+    if not feature_rows:
+        return {
+            "mean": [0.0] * feature_dim,
+            "std": [1.0] * feature_dim,
+        }
+
+    all_features = torch.cat(feature_rows, dim=0)
+    mean = torch.mean(all_features, dim=0)
+    std = torch.std(all_features, dim=0, unbiased=False)
+    std = torch.where(std == 0, torch.ones_like(std), std)
+
+    return {
+        "mean": mean.tolist(),
+        "std": std.tolist(),
+    }
+
+
+def normalize_feature_tensor(features: torch.Tensor, stats: NormalizationStats) -> torch.Tensor:
+    """Applies training-set z-score stats to a feature tensor."""
+    mean = torch.tensor(stats["mean"], dtype=features.dtype, device=features.device).view(1, -1)
+    std = torch.tensor(stats["std"], dtype=features.dtype, device=features.device).view(1, -1)
+    std = torch.where(std == 0, torch.ones_like(std), std)
+    return (features - mean) / std
+
+
+def apply_feature_normalization(samples: List["GraphDataSample"], stats: NormalizationStats):
+    """Normalizes sample node features in-place with shared dataset statistics."""
+    for sample in samples:
+        sample.node_features = normalize_feature_tensor(sample.node_features, stats)
 
 
 class GraphDataSample:
@@ -49,15 +141,21 @@ class InterferenceGraphDataset(Dataset):
     """PyTorch Dataset wrapping generated compiler interference graphs."""
     def __init__(
         self,
-        raw_samples: List[Tuple[Program, ControlFlowGraph, LivenessAnalyzer, InterferenceGraph, AllocationResult]],
-        num_registers: int = 4
+        raw_samples: List[RawSample],
+        num_registers: int = 4,
+        normalization_stats: Optional[NormalizationStats] = None
     ):
         self.num_registers: int = num_registers
         self.samples: List[GraphDataSample] = []
+        self.normalization_stats: Optional[NormalizationStats] = normalization_stats
 
         for prog, cfg, liveness, ig, gt in raw_samples:
             sample = self._convert_sample(ig, gt, num_registers)
             self.samples.append(sample)
+
+        if self.normalization_stats is None:
+            self.normalization_stats = compute_feature_normalization_stats(self.samples)
+        apply_feature_normalization(self.samples, self.normalization_stats)
 
     def _convert_sample(self, ig: InterferenceGraph, gt: AllocationResult, num_registers: int) -> GraphDataSample:
         N = len(ig.variables)
@@ -82,9 +180,13 @@ class InterferenceGraphDataset(Dataset):
                 coal_adj[j, i] = 1.0
 
         target_colors = torch.zeros(N, dtype=torch.long)
+        canonical_assignment = canonicalize_register_assignment(
+            variable_order_from_program(ig.program),
+            gt.register_assignment
+        )
         for name, idx in var_to_idx.items():
-            if name in gt.register_assignment:
-                reg_str = gt.register_assignment[name]  # e.g., 'R0', 'R1'
+            if name in canonical_assignment:
+                reg_str = canonical_assignment[name]  # e.g., 'R0', 'R1'
                 reg_num = int(reg_str.replace("R", ""))
                 target_colors[idx] = min(reg_num, num_registers - 1)
             else:
@@ -130,12 +232,16 @@ class RegAllocDataset(Dataset):
     JSON File Dataset Loader conforming to Phase 4.1 PyG specification.
     Loads raw JSON interference graphs from directory.
     """
-    def __init__(self, json_dir: str):
+    def __init__(self, json_dir: str, normalization_stats: Optional[NormalizationStats] = None):
         super().__init__()
         self.json_dir = json_dir
         self.files = sorted(list(Path(json_dir).glob("*.json")))
         self.samples: List[GraphDataSample] = []
+        self.normalization_stats: Optional[NormalizationStats] = normalization_stats
         self._load_files()
+        if self.normalization_stats is None:
+            self.normalization_stats = compute_feature_normalization_stats(self.samples)
+        apply_feature_normalization(self.samples, self.normalization_stats)
 
     def _load_files(self):
         for fpath in self.files:
@@ -160,11 +266,7 @@ class RegAllocDataset(Dataset):
                 ])
 
             feat_matrix = np.array(raw_feats, dtype=np.float32)
-            stds = np.std(feat_matrix, axis=0, keepdims=True)
-            stds[stds == 0] = 1.0
-            means = np.mean(feat_matrix, axis=0, keepdims=True)
-            norm_feats = (feat_matrix - means) / stds
-            x = torch.tensor(norm_feats, dtype=torch.float32)
+            x = torch.tensor(feat_matrix, dtype=torch.float32)
 
             interf_adj = torch.zeros((N, N), dtype=torch.float32)
             for u, v in g.get("interference_edges", []):
@@ -183,14 +285,22 @@ class RegAllocDataset(Dataset):
                         coalesce_labels[u, v] = 1.0
                         coalesce_labels[v, u] = 1.0
 
-            target_colors = torch.zeros(N, dtype=torch.long)
             var_names = []
+            raw_assignment = {}
             for i, n in enumerate(nodes):
-                var_names.append(n.get("name", f"v{i}"))
-                if n.get("label_spill", False) or n.get("label_register") is None:
+                name = n.get("name", f"v{i}")
+                var_names.append(name)
+                if not n.get("label_spill", False) and n.get("label_register") is not None:
+                    raw_assignment[name] = f"R{int(n['label_register'])}"
+
+            canonical_assignment = canonicalize_register_assignment(var_names, raw_assignment)
+            target_colors = torch.zeros(N, dtype=torch.long)
+            for i, name in enumerate(var_names):
+                if name not in canonical_assignment:
                     target_colors[i] = num_registers
                 else:
-                    target_colors[i] = min(int(n["label_register"]), num_registers - 1)
+                    reg_num = int(canonical_assignment[name].replace("R", ""))
+                    target_colors[i] = min(reg_num, num_registers - 1)
 
             sample = GraphDataSample(
                 node_features=x,

@@ -17,7 +17,7 @@ from compiler.liveness import LivenessAnalyzer
 from compiler.interference_graph import InterferenceGraph
 from compiler.chaitin_briggs import ChaitinBriggsAllocator
 from dataset.generator import SyntheticIRGenerator
-from dataset.dataset import InterferenceGraphDataset, RegAllocDataset
+from dataset.dataset import InterferenceGraphDataset, RegAllocDataset, split_raw_samples
 from models.gnn_allocator import RelationalGNNRegisterAllocator
 from models.trainer import GNNTrainer
 from evaluation.evaluator import BenchmarkEvaluator
@@ -34,7 +34,15 @@ def train_mode(args):
 
     print(f"\n1. Generating synthetic compiler IR dataset ({args.samples} programs, K={num_registers} registers)...")
     raw_dataset = generator.generate_dataset(num_samples=args.samples, num_registers=num_registers)
-    dataset = InterferenceGraphDataset(raw_dataset, num_registers=num_registers)
+    raw_train, raw_val, raw_test = split_raw_samples(raw_dataset, seed=args.seed)
+    dataset = InterferenceGraphDataset(raw_train, num_registers=num_registers)
+    val_dataset = InterferenceGraphDataset(
+        raw_val, num_registers=num_registers, normalization_stats=dataset.normalization_stats
+    )
+    test_dataset = InterferenceGraphDataset(
+        raw_test, num_registers=num_registers, normalization_stats=dataset.normalization_stats
+    )
+    print(f"   Split: train={len(dataset)}, val={len(val_dataset)}, test={len(test_dataset)}")
 
     print("\n2. Initializing Relational Graph Neural Network (R-GCN)...")
     model = RelationalGNNRegisterAllocator(
@@ -44,10 +52,13 @@ def train_mode(args):
         num_layers=3
     )
 
-    trainer = GNNTrainer(model, dataset, lr=1e-3, device="cpu")
+    trainer = GNNTrainer(model, dataset, val_dataset=val_dataset, lr=1e-3, device="cpu")
 
     print("\n3. Starting Training Loop...")
     trainer.train(num_epochs=args.epochs, verbose=True)
+    test_metrics = trainer.evaluate(test_dataset)
+    print(f"   Held-out Test Acc: {test_metrics['accuracy']*100:.1f}% | "
+          f"Color Violations: {test_metrics['violation_rate_pct']:.2f}%")
 
     print(f"\n4. Saving Trained Model Checkpoint to '{args.output}'...")
     trainer.save_checkpoint(args.output)
@@ -157,13 +168,19 @@ def model_comparison_mode(args):
     generator = SyntheticIRGenerator(seed=args.seed)
     print(f"Generating synthetic dataset ({args.samples} samples, K={num_registers})...")
     raw_dataset = generator.generate_dataset(num_samples=args.samples, num_registers=num_registers)
-    dataset = InterferenceGraphDataset(raw_dataset, num_registers=num_registers)
-
-    test_samples = generator.generate_dataset(num_samples=20, num_registers=num_registers)
+    raw_train, raw_val, raw_test = split_raw_samples(raw_dataset, seed=args.seed)
+    dataset = InterferenceGraphDataset(raw_train, num_registers=num_registers)
+    val_dataset = InterferenceGraphDataset(
+        raw_val, num_registers=num_registers, normalization_stats=dataset.normalization_stats
+    )
+    test_samples = raw_test
+    print(f"Split: train={len(dataset)}, val={len(val_dataset)}, test={len(test_samples)}")
 
     evaluator = BenchmarkEvaluator(num_registers=num_registers)
     print("\nRunning multi-seed comparison across GCN, GraphSAGE, GAT, and R-GCN...")
-    comp_results = evaluator.compare_model_architectures(dataset, test_samples, seeds=[0, 1, 2], epochs=args.epochs)
+    comp_results = evaluator.compare_model_architectures(
+        dataset, val_dataset, test_samples, seeds=[0, 1, 2], epochs=args.epochs
+    )
 
     print("\n" + "=" * 75)
     print(f"{'Architecture':<15} | {'Val Accuracy (%)':<22} | {'Avg Spills':<15} | {'Inf Time (ms)':<15}")
@@ -185,10 +202,15 @@ def ablation_mode(args):
     generator = SyntheticIRGenerator(seed=args.seed)
     print(f"Generating synthetic dataset ({args.samples} samples, K={num_registers})...")
     raw_dataset = generator.generate_dataset(num_samples=args.samples, num_registers=num_registers)
-    dataset = InterferenceGraphDataset(raw_dataset, num_registers=num_registers)
+    raw_train, raw_val, _ = split_raw_samples(raw_dataset, seed=args.seed)
+    dataset = InterferenceGraphDataset(raw_train, num_registers=num_registers)
+    val_dataset = InterferenceGraphDataset(
+        raw_val, num_registers=num_registers, normalization_stats=dataset.normalization_stats
+    )
+    print(f"Split: train={len(dataset)}, val={len(val_dataset)}")
 
     ablation = FeatureAblationStudy(num_registers=num_registers)
-    ablation_results = ablation.run_ablation_study(dataset, epochs=args.epochs, seed=args.seed)
+    ablation_results = ablation.run_ablation_study(dataset, val_dataset, epochs=args.epochs, seed=args.seed)
 
     print("\n" + "-" * 60)
     print(f"{'Feature Subset':<25} | {'Accuracy (%)':<15} | {'Violations (%)':<15}")

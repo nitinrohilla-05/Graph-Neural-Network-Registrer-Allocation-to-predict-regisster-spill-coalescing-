@@ -3,10 +3,10 @@ Interference Graph and Coalescing Graph Generator module.
 Constructs multi-relational graph topology with compiler node features.
 """
 
-from typing import Dict, Set, List, Tuple, Any
+from typing import Dict, Set, List, Tuple, Any, Optional
 import numpy as np
 import networkx as nx
-from .ir import Program, Variable, OpCode
+from .ir import Program, Variable, OpCode, Instruction
 from .cfg import ControlFlowGraph
 from .liveness import LivenessAnalyzer
 
@@ -56,6 +56,8 @@ class InterferenceGraph:
 
         self.interference_edges: Set[Tuple[str, str]] = set()
         self.coalescing_edges: Set[Tuple[str, str]] = set()
+        self._degree: Dict[str, int] = {v.name: 0 for v in self.variables}
+        self._move_degree: Dict[str, int] = {v.name: 0 for v in self.variables}
 
         self.spill_costs: Dict[str, float] = {v.name: 0.0 for v in self.variables}
         self.loop_depths: Dict[str, int] = {v.name: 0 for v in self.variables}
@@ -109,17 +111,33 @@ class InterferenceGraph:
                             edge = tuple(sorted([d.name, l.name]))
                             self.interference_edges.add(edge)
 
+        self._recompute_degrees()
+
+    def _recompute_degrees(self):
+        """Precomputes edge degrees once after graph construction."""
+        self._degree = {v.name: 0 for v in self.variables}
+        self._move_degree = {v.name: 0 for v in self.variables}
+
+        for u, v in self.interference_edges:
+            if u in self._degree:
+                self._degree[u] += 1
+            if v in self._degree:
+                self._degree[v] += 1
+
+        for u, v in self.coalescing_edges:
+            if u in self._move_degree:
+                self._move_degree[u] += 1
+            if v in self._move_degree:
+                self._move_degree[v] += 1
+
     def _get_block_for_inst(self, inst: Instruction):
-        for block in self.cfg.blocks:
-            if inst in block.instructions:
-                return block
-        return None
+        return self.cfg.inst_to_block.get(inst)
 
     def get_interference_degree(self, var_name: str) -> int:
-        return sum(1 for u, v in self.interference_edges if u == var_name or v == var_name)
+        return self._degree.get(var_name, 0)
 
     def get_move_degree(self, var_name: str) -> int:
-        return sum(1 for u, v in self.coalescing_edges if u == var_name or v == var_name)
+        return self._move_degree.get(var_name, 0)
 
     def get_node_features(self) -> Dict[str, NodeFeature]:
         features = {}
@@ -138,8 +156,8 @@ class InterferenceGraph:
             )
         return features
 
-    def get_feature_matrix(self) -> np.ndarray:
-        """Returns N x F feature matrix for GNN input."""
+    def get_raw_feature_matrix(self) -> np.ndarray:
+        """Returns unnormalized N x F compiler feature matrix for GNN input."""
         features_dict = self.get_node_features()
         matrix = []
         for v in self.variables:
@@ -152,11 +170,17 @@ class InterferenceGraph:
                 float(feat.live_range_length),
                 float(feat.use_count)
             ])
-        matrix = np.array(matrix, dtype=np.float32)
-        # Normalize columns safely
-        stds = np.std(matrix, axis=0, keepdims=True)
+        return np.array(matrix, dtype=np.float32)
+
+    def get_feature_matrix(self, normalization_stats: Optional[Dict[str, Any]] = None) -> np.ndarray:
+        """Returns N x F features, using training-set normalization stats when provided."""
+        matrix = self.get_raw_feature_matrix()
+        if normalization_stats is None:
+            return matrix
+
+        means = np.array(normalization_stats["mean"], dtype=np.float32).reshape(1, -1)
+        stds = np.array(normalization_stats["std"], dtype=np.float32).reshape(1, -1)
         stds[stds == 0] = 1.0
-        means = np.mean(matrix, axis=0, keepdims=True)
         return (matrix - means) / stds
 
     def to_networkx(self) -> Tuple[nx.Graph, nx.Graph]:

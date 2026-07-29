@@ -47,11 +47,13 @@ class FeatureAblationStudy:
 
         new_ds = InterferenceGraphDataset([], num_registers=self.num_registers)
         new_ds.samples = masked_samples
+        new_ds.normalization_stats = getattr(dataset, "normalization_stats", None)
         return new_ds
 
     def run_ablation_study(
         self,
         dataset: InterferenceGraphDataset,
+        val_dataset: InterferenceGraphDataset,
         epochs: int = 15,
         seed: int = 42
     ) -> Dict[str, Dict[str, float]]:
@@ -64,7 +66,7 @@ class FeatureAblationStudy:
         # 1. Full feature set baseline
         torch.manual_seed(seed)
         full_model = RelationalGNNRegisterAllocator(num_registers=self.num_registers)
-        trainer = GNNTrainer(full_model, dataset)
+        trainer = GNNTrainer(full_model, dataset, val_dataset=val_dataset)
         trainer.train(num_epochs=epochs, verbose=False)
         full_eval = trainer.evaluate()
         results["Full Features"] = full_eval
@@ -73,8 +75,9 @@ class FeatureAblationStudy:
         for idx, feat_name in enumerate(FEATURE_NAMES):
             torch.manual_seed(seed)
             ablated_ds = self.mask_dataset_feature(dataset, idx)
+            ablated_val_ds = self.mask_dataset_feature(val_dataset, idx)
             model = RelationalGNNRegisterAllocator(num_registers=self.num_registers)
-            ab_trainer = GNNTrainer(model, ablated_ds)
+            ab_trainer = GNNTrainer(model, ablated_ds, val_dataset=ablated_val_ds)
             ab_trainer.train(num_epochs=epochs, verbose=False)
             eval_metrics = ab_trainer.evaluate()
             results[f"No {feat_name}"] = eval_metrics

@@ -5,6 +5,8 @@ Manages epoch optimization, metric computation, class imbalance weighting, and m
 
 from typing import Dict, Any, List, Optional
 import os
+import pickle
+import warnings
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -29,6 +31,9 @@ class GNNTrainer:
         self.dataset: Any = dataset
         self.val_dataset: Optional[Any] = val_dataset
         self.device: torch.device = torch.device(device)
+        self.normalization_stats = getattr(dataset, "normalization_stats", None)
+        if self.normalization_stats is not None:
+            setattr(self.model, "normalization_stats", self.normalization_stats)
 
         pos_weight = None
         if use_pos_weight and hasattr(dataset, "get_pos_weight"):
@@ -61,10 +66,10 @@ class GNNTrainer:
             coalesce_labels = sample.coalesce_labels.to(self.device)
 
             self.optimizer.zero_grad()
-            color_logits, coalesce_scores = self.model(x, interf_adj, coal_adj)
+            color_logits, coalesce_logits = self.model(x, interf_adj, coal_adj)
 
             loss, loss_dict = self.criterion(
-                color_logits, coalesce_scores, target_colors, interf_adj, coal_adj, coalesce_labels
+                color_logits, coalesce_logits, target_colors, interf_adj, coal_adj, coalesce_labels
             )
 
             loss.backward()
@@ -93,7 +98,12 @@ class GNNTrainer:
     def evaluate(self, eval_dataset: Optional[Any] = None) -> Dict[str, float]:
         """Evaluates model performance: accuracy and color conflict rate."""
         self.model.eval()
-        ds = eval_dataset or self.val_dataset or self.dataset
+        ds = eval_dataset if eval_dataset is not None else self.val_dataset
+        if ds is None:
+            raise ValueError(
+                "GNNTrainer.evaluate requires an explicit eval_dataset or constructor val_dataset; "
+                "refusing to report training-set metrics as validation."
+            )
 
         correct_preds = 0
         total_preds = 0
@@ -160,19 +170,37 @@ class GNNTrainer:
             "model_state_dict": self.model.state_dict(),
             "in_node_features": getattr(self.model, "in_channels", getattr(self.model, "in_node_features", 6)),
             "hidden_dim": getattr(self.model, "hidden_channels", getattr(self.model, "hidden_dim", 64)),
-            "num_registers": getattr(self.model, "num_registers", 4)
+            "num_registers": getattr(self.model, "num_registers", 4),
+            "normalization_stats": self.normalization_stats
         }, filepath)
         print(f"Saved GNN Model Checkpoint to {filepath}")
 
     @classmethod
     def load_checkpoint(cls, filepath: str = "gnn_allocator.pt", device: str = "cpu") -> RelationalGNNRegisterAllocator:
         """Loads GNN model from checkpoint."""
-        checkpoint = torch.load(filepath, map_location=device)
+        try:
+            checkpoint = torch.load(filepath, map_location=device, weights_only=True)
+        except TypeError:
+            warnings.warn(
+                "This PyTorch version does not support weights_only=True; falling back to legacy torch.load. "
+                "Only load checkpoints from trusted sources.",
+                RuntimeWarning
+            )
+            checkpoint = torch.load(filepath, map_location=device)
+        except pickle.UnpicklingError:
+            warnings.warn(
+                "weights_only=True could not load this legacy checkpoint; falling back to unsafe legacy loading. "
+                "Only load checkpoints from trusted sources.",
+                RuntimeWarning
+            )
+            checkpoint = torch.load(filepath, map_location=device, weights_only=False)
         model = RelationalGNNRegisterAllocator(
             in_node_features=checkpoint.get("in_node_features", 6),
             hidden_dim=checkpoint.get("hidden_dim", 64),
             num_registers=checkpoint.get("num_registers", 4)
         )
         model.load_state_dict(checkpoint["model_state_dict"])
+        if "normalization_stats" in checkpoint:
+            setattr(model, "normalization_stats", checkpoint["normalization_stats"])
         model.eval()
         return model

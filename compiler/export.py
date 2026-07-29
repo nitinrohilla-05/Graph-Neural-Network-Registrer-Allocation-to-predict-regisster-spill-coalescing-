@@ -7,7 +7,7 @@ import json
 import os
 from typing import Dict, List, Any, Optional
 from .interference_graph import InterferenceGraph
-from .chaitin_briggs import AllocationResult
+from .chaitin_briggs import AllocationResult, canonicalize_register_assignment, variable_order_from_program
 
 
 def export_graph_to_json(
@@ -22,6 +22,12 @@ def export_graph_to_json(
     """
     features = ig.get_node_features()
     var_to_idx = {v.name: i for i, v in enumerate(ig.variables)}
+    canonical_assignment = {}
+    if gt_res is not None:
+        canonical_assignment = canonicalize_register_assignment(
+            variable_order_from_program(ig.program),
+            gt_res.register_assignment
+        )
 
     nodes_list = []
     for i, v in enumerate(ig.variables):
@@ -32,8 +38,8 @@ def export_graph_to_json(
         label_reg = None
         label_spill = False
         if gt_res is not None:
-            if name in gt_res.register_assignment:
-                reg_str = gt_res.register_assignment[name]  # e.g., 'R0', 'R1'
+            if name in canonical_assignment:
+                reg_str = canonical_assignment[name]  # e.g., 'R0', 'R1'
                 label_reg = int(reg_str.replace("R", ""))
                 label_spill = False
             else:

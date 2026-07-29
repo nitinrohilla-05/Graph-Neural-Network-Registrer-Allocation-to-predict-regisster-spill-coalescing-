@@ -62,6 +62,7 @@ class ControlFlowGraph:
         self.entry_block: Optional[BasicBlock] = None
         self.exit_block: Optional[BasicBlock] = None
         self.label_to_block: Dict[str, BasicBlock] = {}
+        self.inst_to_block: Dict[Instruction, BasicBlock] = {}
         self.nx_graph: nx.DiGraph = nx.DiGraph()
 
         self._build_cfg()
@@ -92,8 +93,6 @@ class ControlFlowGraph:
                     leaders.add(idx + 1)
 
         sorted_leaders = sorted(list(leaders))
-        inst_to_block: Dict[int, BasicBlock] = {}
-
         # 2. Form basic blocks
         for i, start_idx in enumerate(sorted_leaders):
             end_idx = sorted_leaders[i + 1] if i + 1 < len(sorted_leaders) else len(self.program.instructions)
@@ -105,7 +104,7 @@ class ControlFlowGraph:
             for inst_idx in range(start_idx, end_idx):
                 inst = self.program.instructions[inst_idx]
                 block.add_instruction(inst)
-                inst_to_block[inst_idx] = block
+                self.inst_to_block[inst] = block
 
             if lbl:
                 self.label_to_block[lbl] = block

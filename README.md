@@ -13,7 +13,7 @@ When $K$ physical registers are insufficient to hold all active live ranges simu
 1. **Spilling**: Variables must be "spilled" onto stack memory frame, incurring heavy load/store latency.
 2. **Coalescing**: Variables involved in `MOVE` instructions ($v_{\text{dst}} \leftarrow v_{\text{src}}$) should ideally share the same physical register to eliminate the `MOVE` instruction entirely.
 
-Traditional compilers rely on greedy heuristics like **Chaitin-Briggs Graph Coloring** ($\text{spill\_cost} / \text{degree}$). This project replaces manual heuristics with a **Relational Graph Neural Network (R-GCN)** that learns topology-aware register assignment, spill prediction, and move coalescing directly from program Control Flow Graphs (CFG) and Interference Graphs.
+Traditional compilers rely on greedy heuristics like **Chaitin-Briggs Graph Coloring** ($\text{spill\_cost} / \text{degree}$). This project experiments with a **Relational Graph Neural Network (R-GCN)** that learns topology-aware register assignment, spill prediction, and move coalescing from program Control Flow Graphs (CFG) and Interference Graphs, then benchmarks it against Chaitin-Briggs and random baselines.
 
 ---
 
@@ -128,7 +128,7 @@ pip install -r requirements.txt
 ### 2. Run Test Suite
 Verify that compiler and GNN components pass unit tests:
 ```bash
-python -m unittest discover -s tests
+python -m pytest -q
 ```
 
 ### 3. Train GNN Model
@@ -158,13 +158,21 @@ Open `web/index.html` in any web browser to view the interactive canvas graph vi
 
 ---
 
-## 📊 Sample Benchmark Results
+## Sample Benchmark Results
 
-| Strategy | Avg Spills | Avg Spill Cost | Move Elimination Rate (%) | Coloring Conflict Rate |
+Corrected held-out synthetic benchmark: 60 generated programs, deterministic 42/9/9 train/validation/test split, 20 training epochs, K=4 registers. GNN conflict counts below are measured after greedy post-hoc repair.
+
+| Strategy | Avg Spills | Avg Spill Cost | Move Elimination Rate (%) | Avg Coloring Conflicts |
 | :--- | :--- | :--- | :--- | :--- |
-| **GNN-Guided Allocator** | **10.0** | **204.1** | **Learned Policy** | **0.0% (Clean)** |
-| **Chaitin-Briggs (Greedy)** | 7.4 | 160.5 | 4.3% | 0.0% |
-| **Random Allocation** | 9.0 | 238.0 | 1.9% | 15.2% |
+| GNN-Guided Allocator | 9.00 | 225.44 | 0.00% | 0.00 |
+| Chaitin-Briggs (Greedy) | 8.44 | 165.11 | 3.70% | 0.00 |
+| Random Allocation | 8.89 | 224.11 | 3.44% | 0.00 |
+
+Validation accuracy on the corrected split was 48.1%; held-out test label accuracy was 50.7%. These numbers are not directly comparable to the older training-set "validation" results.
+
+## Limitations
+
+This project currently uses synthetic-only compiler IR data. The GNN is supervised by canonicalized Chaitin-Briggs-derived labels rather than optimal allocations, so it learns from a heuristic teacher and should not be interpreted as an optimal allocator.
 
 ---
 

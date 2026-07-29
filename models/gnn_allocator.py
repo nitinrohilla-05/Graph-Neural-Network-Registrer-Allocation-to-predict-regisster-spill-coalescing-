@@ -53,8 +53,8 @@ class GCNSpillPredictor(nn.Module):
             h = F.dropout(h, p=self.dropout, training=self.training)
 
         color_logits = self.classifier(h)
-        coalesce_scores = torch.sigmoid(torch.matmul(h, h.T))
-        return color_logits, coalesce_scores
+        coalesce_logits = torch.matmul(h, h.T)
+        return color_logits, coalesce_logits
 
     def get_node_embeddings(self, x: torch.Tensor, interf_adj: torch.Tensor) -> torch.Tensor:
         h = F.relu(self.encoder(x))
@@ -101,8 +101,8 @@ class SAGESpillPredictor(nn.Module):
             h = F.dropout(h, p=self.dropout, training=self.training)
 
         color_logits = self.classifier(h)
-        coalesce_scores = torch.sigmoid(torch.matmul(h, h.T))
-        return color_logits, coalesce_scores
+        coalesce_logits = torch.matmul(h, h.T)
+        return color_logits, coalesce_logits
 
 
 class GATSpillPredictor(nn.Module):
@@ -150,8 +150,8 @@ class GATSpillPredictor(nn.Module):
             h = F.dropout(h, p=self.dropout, training=self.training)
 
         color_logits = self.classifier(h)
-        coalesce_scores = torch.sigmoid(torch.matmul(h, h.T))
-        return color_logits, coalesce_scores
+        coalesce_logits = torch.matmul(h, h.T)
+        return color_logits, coalesce_logits
 
 
 class RelationalGConv(nn.Module):
@@ -197,7 +197,7 @@ class RelationalGNNRegisterAllocator(nn.Module):
     Relational Graph Neural Network Architecture for Compiler Register Allocation and Spill Coalescing.
     Outputs:
     1. Register Color Logits [N, K+1]: Class 0..K-1 = Physical Registers, Class K = Spill
-    2. Coalescing Edge Scores [N, N]: Probability that move edge (u, v) can be safely coalesced.
+    2. Coalescing Edge Logits [N, N]: raw scores for whether a move edge can be safely coalesced.
     """
     def __init__(
         self,
@@ -262,9 +262,9 @@ class RelationalGNNRegisterAllocator(nn.Module):
         color_logits = self.color_head(h)  # [N, K+1]
 
         h_transform = torch.matmul(h, self.edge_w)  # [N, hidden_dim]
-        coalesce_scores = torch.sigmoid(torch.matmul(h_transform, h.T))  # [N, N]
+        coalesce_logits = torch.matmul(h_transform, h.T)  # [N, N]
 
-        return color_logits, coalesce_scores
+        return color_logits, coalesce_logits
 
     def get_node_embeddings(self, x: torch.Tensor, interf_adj: torch.Tensor, coal_adj: torch.Tensor) -> torch.Tensor:
         """Returns frozen node embeddings [N, hidden_dim] from penultimate GNN layer."""
@@ -314,12 +314,12 @@ class GraphColoringLoss(nn.Module):
         self.conflict_weight: float = conflict_weight
         self.coalesce_weight: float = coalesce_weight
         self.ce_loss = nn.CrossEntropyLoss()
-        self.bce_loss = nn.BCEWithLogitsLoss(pos_weight=pos_weight) if pos_weight is not None else nn.BCELoss()
+        self.bce_loss = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     def forward(
         self,
         color_logits: torch.Tensor,       # [N, K+1]
-        coalesce_scores: torch.Tensor,    # [N, N]
+        coalesce_logits: torch.Tensor,    # [N, N]
         target_colors: torch.Tensor,      # [N]
         interf_adj: torch.Tensor,         # [N, N]
         coal_adj: torch.Tensor,           # [N, N]
@@ -337,10 +337,7 @@ class GraphColoringLoss(nn.Module):
 
         move_mask = (coal_adj > 0)
         if torch.sum(move_mask) > 0:
-            if isinstance(self.bce_loss, nn.BCEWithLogitsLoss):
-                loss_coalesce = self.bce_loss(coalesce_scores[move_mask], coalesce_labels[move_mask])
-            else:
-                loss_coalesce = self.bce_loss(coalesce_scores[move_mask], coalesce_labels[move_mask])
+            loss_coalesce = self.bce_loss(coalesce_logits[move_mask], coalesce_labels[move_mask])
         else:
             loss_coalesce = torch.tensor(0.0, device=color_logits.device)
 

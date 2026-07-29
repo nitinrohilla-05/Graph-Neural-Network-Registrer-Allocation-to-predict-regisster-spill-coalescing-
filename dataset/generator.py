@@ -9,7 +9,12 @@ from compiler.ir import Program, Instruction, OpCode, Variable
 from compiler.cfg import ControlFlowGraph
 from compiler.liveness import LivenessAnalyzer
 from compiler.interference_graph import InterferenceGraph
-from compiler.chaitin_briggs import ChaitinBriggsAllocator, AllocationResult
+from compiler.chaitin_briggs import (
+    ChaitinBriggsAllocator,
+    AllocationResult,
+    canonicalize_allocation_result,
+    variable_order_from_program
+)
 
 
 class SyntheticIRGenerator:
@@ -118,6 +123,9 @@ class SyntheticIRGenerator:
 
             allocator = ChaitinBriggsAllocator(num_registers=num_registers)
             ground_truth = allocator.allocate(ig)
+            # Graph coloring is permutation-invariant; canonical labels keep equivalent
+            # Chaitin-Briggs colorings from becoming contradictory CE targets.
+            ground_truth = canonicalize_allocation_result(ground_truth, variable_order_from_program(prog))
 
             dataset.append((prog, cfg, liveness, ig, ground_truth))
 
@@ -144,4 +152,3 @@ class SyntheticIRGenerator:
             filepaths.append(filepath)
 
         return filepaths
-

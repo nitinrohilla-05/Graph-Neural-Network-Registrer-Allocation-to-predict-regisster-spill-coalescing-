@@ -47,6 +47,31 @@ class TestCompilerSubsystem(unittest.TestCase):
         feat_matrix = ig.get_feature_matrix()
         self.assertEqual(feat_matrix.shape, (3, 6))
 
+    def test_cached_degrees_match_naive_edge_scans(self):
+        prog = Program(name="degree_prog")
+        a = prog.get_or_create_var("a")
+        b = prog.get_or_create_var("b")
+        c = prog.get_or_create_var("c")
+        d = prog.get_or_create_var("d")
+        one = prog.get_or_create_var("const_1", is_const=True, const_val=1)
+
+        prog.add_instruction(Instruction(OpCode.ASSIGN, target=a, arg1=one))
+        prog.add_instruction(Instruction(OpCode.ASSIGN, target=b, arg1=one))
+        prog.add_instruction(Instruction(OpCode.MOVE, target=c, arg1=a))
+        prog.add_instruction(Instruction(OpCode.ADD, target=d, arg1=c, arg2=b))
+        prog.add_instruction(Instruction(OpCode.RETURN, arg1=d))
+
+        cfg = ControlFlowGraph(prog)
+        liveness = LivenessAnalyzer(cfg)
+        ig = InterferenceGraph(prog, cfg, liveness)
+
+        for var in ig.variables:
+            name = var.name
+            naive_interf_degree = sum(1 for u, v in ig.interference_edges if u == name or v == name)
+            naive_move_degree = sum(1 for u, v in ig.coalescing_edges if u == name or v == name)
+            self.assertEqual(ig.get_interference_degree(name), naive_interf_degree)
+            self.assertEqual(ig.get_move_degree(name), naive_move_degree)
+
 
 if __name__ == "__main__":
     unittest.main()

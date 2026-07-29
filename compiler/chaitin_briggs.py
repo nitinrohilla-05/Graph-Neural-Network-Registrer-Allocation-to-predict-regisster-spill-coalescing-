@@ -24,6 +24,52 @@ class AllocationResult:
                 f"eliminated_moves={self.eliminated_moves}, total_spill_cost={self.total_spill_cost:.2f})")
 
 
+def variable_order_from_program(program: Program) -> List[str]:
+    """Returns non-constant variables in first-appearance instruction order."""
+    seen: Set[str] = set()
+    ordered: List[str] = []
+
+    for inst in program.instructions:
+        for var in (inst.target, inst.arg1, inst.arg2):
+            if var and not var.is_const and var.name not in seen:
+                seen.add(var.name)
+                ordered.append(var.name)
+
+    for var in program.get_non_const_vars():
+        if var.name not in seen:
+            seen.add(var.name)
+            ordered.append(var.name)
+
+    return ordered
+
+
+def canonicalize_register_assignment(var_order: List[str], register_assignment: Dict[str, str]) -> Dict[str, str]:
+    """Relabels physical registers deterministically by first assignment appearance."""
+    reg_remap: Dict[str, str] = {}
+    canonical_assignment: Dict[str, str] = {}
+
+    for name in list(var_order) + sorted(set(register_assignment) - set(var_order)):
+        reg = register_assignment.get(name)
+        if reg is None:
+            continue
+        if reg not in reg_remap:
+            reg_remap[reg] = f"R{len(reg_remap)}"
+        canonical_assignment[name] = reg_remap[reg]
+
+    return canonical_assignment
+
+
+def canonicalize_allocation_result(result: AllocationResult, var_order: List[str]) -> AllocationResult:
+    """Returns a copy with permutation-equivalent register labels mapped to stable canonical labels."""
+    canonical = AllocationResult()
+    canonical.register_assignment = canonicalize_register_assignment(var_order, result.register_assignment)
+    canonical.spilled_vars = set(result.spilled_vars)
+    canonical.coalesced_pairs = list(result.coalesced_pairs)
+    canonical.eliminated_moves = result.eliminated_moves
+    canonical.total_spill_cost = result.total_spill_cost
+    return canonical
+
+
 class ChaitinBriggsAllocator:
     """Classic Chaitin-Briggs Optimistic Register Allocator with Coalescing."""
     def __init__(self, num_registers: int = 4):

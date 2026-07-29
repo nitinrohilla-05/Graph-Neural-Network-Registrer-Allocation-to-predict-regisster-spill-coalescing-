@@ -44,7 +44,8 @@ class BenchmarkEvaluator:
         model.eval()
         t0 = time.perf_counter()
 
-        feat_matrix = ig.get_feature_matrix()
+        normalization_stats = getattr(model, "normalization_stats", None)
+        feat_matrix = ig.get_feature_matrix(normalization_stats=normalization_stats)
         x = torch.tensor(feat_matrix, dtype=torch.float32)
 
         N = len(ig.variables)
@@ -150,6 +151,7 @@ class BenchmarkEvaluator:
     def compare_model_architectures(
         self,
         dataset: Any,
+        val_dataset: Any,
         test_samples: List[Tuple[Program, ControlFlowGraph, LivenessAnalyzer, InterferenceGraph, Any]],
         seeds: List[int] = [0, 1, 2],
         epochs: int = 15
@@ -176,7 +178,7 @@ class BenchmarkEvaluator:
             for s in seeds:
                 torch.manual_seed(s)
                 model = cls(in_channels=6, num_registers=self.num_registers)
-                trainer = GNNTrainer(model, dataset)
+                trainer = GNNTrainer(model, dataset, val_dataset=val_dataset)
                 trainer.train(num_epochs=epochs, verbose=False)
 
                 eval_metrics = trainer.evaluate()
