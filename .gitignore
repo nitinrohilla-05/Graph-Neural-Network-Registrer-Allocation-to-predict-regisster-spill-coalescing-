@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest / Test Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# PyTorch checkpoints and local cache
+checkpoints/*.pt
+*.pt
+!gnn_allocator.pt
+
+# Data outputs & local scratch
+data/raw_graphs/
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini

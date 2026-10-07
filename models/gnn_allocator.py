@@ -129,12 +129,13 @@ class GATSpillPredictor(nn.Module):
             nn.Linear(hidden_channels // 2, self.num_classes)
         )
         self.dropout = dropout
+        self.last_attention_weights: Optional[torch.Tensor] = None
 
     def forward(self, x: torch.Tensor, interf_adj: torch.Tensor, coal_adj: torch.Tensor = None):
         h = F.relu(self.encoder(x))
         N = h.size(0)
 
-        for wp, aa in zip(self.w_proj, self.a_attn):
+        for layer_idx, (wp, aa) in enumerate(zip(self.w_proj, self.a_attn)):
             h_proj = torch.matmul(h, wp)  # [N, H]
             # Pairwise attention logits
             h_i = h_proj.unsqueeze(1).repeat(1, N, 1)  # [N, N, H]
@@ -145,6 +146,9 @@ class GATSpillPredictor(nn.Module):
             mask = (interf_adj + torch.eye(N, device=x.device)) == 0
             attn_logits = attn_logits.masked_fill(mask, -1e9)
             attn_weights = F.softmax(attn_logits, dim=-1)
+
+            if layer_idx == len(self.w_proj) - 1:
+                self.last_attention_weights = attn_weights.detach()
 
             h = F.relu(torch.matmul(attn_weights, h_proj))
             h = F.dropout(h, p=self.dropout, training=self.training)

@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GNN Register Allocation & Spill Coalescing - Compiler Design Dashboard</title>
+    <title>Multi-Agent GNN Register Allocation & Spill Coalescing Platform</title>
     <!-- Modern Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Anti-caching headers -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261007_v6">
 </head>
 <body>
     <div class="app-container">
@@ -21,23 +25,70 @@
                     <i class="fa-solid fa-diagram-project"></i>
                 </div>
                 <div class="brand-text">
-                    <h1>GNN Compiler Allocator</h1>
-                    <span class="subtitle">Graph Neural Network Register Allocation & Spill Coalescing</span>
+                    <h1>Multi-Agent Compiler Allocator</h1>
+                    <span class="subtitle">4 Pattern Detection Agents & Consensus Arbiter</span>
                 </div>
             </div>
             <div class="controls">
-                <div class="badge-tag">
+                <div class="badge-tag" id="badge-registers">
                     <i class="fa-solid fa-microchip"></i> Physical Regs: <strong id="k-value">K = 4</strong>
                 </div>
+                <button id="btn-toggle-dataset" class="btn btn-secondary">
+                    <i class="fa-solid fa-code-compare"></i> <span id="lbl-dataset">Load Comparison Run</span>
+                </button>
                 <button id="btn-reload" class="btn btn-primary">
-                    <i class="fa-solid fa-arrows-rotate"></i> Load Data
+                    <i class="fa-solid fa-arrows-rotate"></i> Reload Data
                 </button>
             </div>
         </header>
 
         <!-- Main Dashboard Content -->
         <main class="dashboard">
-            <!-- Metrics Bar -->
+            <!-- Model Selector Bar -->
+            <section class="model-selector-bar glass">
+                <div class="selector-label">
+                    <i class="fa-solid fa-layer-group"></i> Active Allocator:
+                </div>
+                <div class="model-buttons" id="model-buttons-container">
+                    <button class="model-btn active" data-model="consensus">
+                        <i class="fa-solid fa-users"></i> Consensus
+                    </button>
+                    <button class="model-btn" data-model="rgcn">
+                        <i class="fa-solid fa-arrows-split-up-and-left"></i> R-GCN
+                    </button>
+                    <button class="model-btn" data-model="rgat">
+                        <i class="fa-solid fa-eye"></i> R-GAT
+                    </button>
+                    <button class="model-btn" data-model="rsage">
+                        <i class="fa-solid fa-network-wired"></i> R-SAGE
+                    </button>
+                    <button class="model-btn" data-model="gin">
+                        <i class="fa-solid fa-shapes"></i> R-GIN
+                    </button>
+                    <button class="model-btn" data-model="cb">
+                        <i class="fa-solid fa-shield-halved"></i> Chaitin-Briggs
+                    </button>
+                    <button class="model-btn" data-model="random">
+                        <i class="fa-solid fa-dice"></i> Random
+                    </button>
+                </div>
+            </section>
+
+            <!-- Active Model Info Banner -->
+            <section class="model-info-banner glass" id="model-info-banner">
+                <div class="info-meta">
+                    <h3 id="current-model-title">Consensus Ensemble</h3>
+                    <p id="current-model-desc">Two-stage confidence-weighted soft voting across all 4 pattern detection agents.</p>
+                </div>
+                <div class="info-badges">
+                    <span class="meta-badge"><i class="fa-solid fa-boxes-packing"></i> Spills: <strong id="meta-spills">0</strong></span>
+                    <span class="meta-badge"><i class="fa-solid fa-coins"></i> Spill Cost: <strong id="meta-cost">0</strong></span>
+                    <span class="meta-badge"><i class="fa-solid fa-scissors"></i> Moves Eliminated: <strong id="meta-moves">0</strong></span>
+                    <span class="meta-badge" id="badge-agreement-pct"><i class="fa-solid fa-handshake"></i> Unanimous: <strong id="meta-unanimous">100%</strong></span>
+                </div>
+            </section>
+
+            <!-- Metrics Grid -->
             <section class="metrics-grid">
                 <div class="metric-card glass">
                     <div class="card-icon cyan"><i class="fa-solid fa-code"></i></div>
@@ -63,28 +114,39 @@
                 <div class="metric-card glass">
                     <div class="card-icon purple"><i class="fa-solid fa-boxes-packing"></i></div>
                     <div class="card-data">
-                        <span class="metric-label">GNN Stack Spills</span>
-                        <h2 id="stat-gnn-spills">0</h2>
+                        <span class="metric-label">Active Spills</span>
+                        <h2 id="stat-active-spills">0</h2>
                     </div>
                 </div>
                 <div class="metric-card glass">
-                    <div class="card-icon gold"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="card-icon gold"><i class="fa-solid fa-triangle-exclamation"></i></div>
                     <div class="card-data">
-                        <span class="metric-label">Chaitin Spills</span>
-                        <h2 id="stat-cb-spills">0</h2>
+                        <span class="metric-label">Disagreement Nodes</span>
+                        <h2 id="stat-disagreements">0</h2>
                     </div>
                 </div>
             </section>
 
-            <!-- Main Layout Split: Left (Graph + Controls), Right (IR + Data) -->
+            <!-- Main Layout Split -->
             <div class="content-split">
                 <!-- Left Panel: Graph Visualizer -->
                 <div class="panel glass graph-panel">
                     <div class="panel-header">
-                        <h2><i class="fa-solid fa-circle-nodes"></i> Interference & Coalescing Graph</h2>
-                        <div class="view-toggle">
-                            <button id="mode-gnn" class="toggle-btn active">GNN Allocation</button>
-                            <button id="mode-cb" class="toggle-btn">Chaitin-Briggs</button>
+                        <h2><i class="fa-solid fa-circle-nodes"></i> Multi-Relational Interference Graph</h2>
+                        <div class="graph-toolbar">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-disagreements" checked>
+                                <span class="slider"></span>
+                                <span class="switch-label">Highlight Disagreements</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-attention">
+                                <span class="slider"></span>
+                                <span class="switch-label">GAT Attention</span>
+                            </label>
+                            <button id="btn-reset-view" class="btn-icon" title="Reset Zoom & Pan">
+                                <i class="fa-solid fa-compress"></i>
+                            </button>
                         </div>
                     </div>
                     
@@ -94,50 +156,45 @@
                         <span class="legend-item"><span class="color-dot reg-r2"></span> R2</span>
                         <span class="legend-item"><span class="color-dot reg-r3"></span> R3</span>
                         <span class="legend-item"><span class="color-dot reg-spill"></span> Spill (Stack)</span>
-                        <span class="legend-item"><span class="line-sample interf-line"></span> Interference Edge</span>
-                        <span class="legend-item"><span class="line-sample coal-line"></span> Move Coalesce Edge</span>
+                        <span class="legend-item"><span class="color-dot reg-disagree"></span> Disagreement</span>
+                        <span class="legend-item"><span class="line-sample interf-line"></span> Interference</span>
+                        <span class="legend-item"><span class="line-sample coal-line"></span> Move Coalescing</span>
                     </div>
 
-                    <div class="canvas-container">
+                    <div class="canvas-container" id="canvas-container">
                         <canvas id="graph-canvas"></canvas>
                         <div id="node-tooltip" class="tooltip hidden"></div>
+                        <div class="canvas-hint">
+                            <i class="fa-solid fa-circle-info"></i> Drag nodes to reposition • Scroll to zoom • Drag background to pan
+                        </div>
                     </div>
                 </div>
 
-                <!-- Right Panel: IR Code & Register Details -->
+                <!-- Right Panel: IR Code, CFG, Details & Diagnostics -->
                 <div class="panel glass sidebar-panel">
                     <!-- Tab Switcher -->
                     <div class="tab-header">
-                        <button class="tab-btn active" data-tab="tab-ir"><i class="fa-solid fa-file-code"></i> TAC IR Code</button>
-                        <button class="tab-btn" data-tab="tab-cfg"><i class="fa-solid fa-diagram-successor"></i> Control Flow Graph</button>
-                        <button class="tab-btn" data-tab="tab-nodes"><i class="fa-solid fa-list-check"></i> Register Table</button>
+                        <button class="tab-btn active" data-tab="tab-nodes"><i class="fa-solid fa-list-check"></i> Register Table</button>
+                        <button class="tab-btn" data-tab="tab-patterns"><i class="fa-solid fa-microscope"></i> Agent Patterns</button>
+                        <button class="tab-btn" data-tab="tab-agreement"><i class="fa-solid fa-handshake"></i> Agreement Matrix</button>
+                        <button class="tab-btn" data-tab="tab-ir"><i class="fa-solid fa-file-code"></i> TAC IR</button>
+                        <button class="tab-btn" data-tab="tab-cfg"><i class="fa-solid fa-diagram-successor"></i> CFG</button>
                     </div>
 
                     <div class="tab-content">
-                        <!-- TAC IR Tab -->
-                        <div id="tab-ir" class="tab-pane active">
-                            <pre class="code-block"><code id="code-tac">// TAC Instructions will load here...</code></pre>
-                        </div>
-
-                        <!-- CFG Tab -->
-                        <div id="tab-cfg" class="tab-pane">
-                            <div id="cfg-blocks-container" class="cfg-container">
-                                <!-- CFG Basic blocks rendered here -->
-                            </div>
-                        </div>
-
                         <!-- Register Table Tab -->
-                        <div id="tab-nodes" class="tab-pane">
+                        <div id="tab-nodes" class="tab-pane active">
                             <div class="table-wrapper">
                                 <table class="node-table">
                                     <thead>
                                         <tr>
-                                            <th>Variable</th>
-                                            <th>Loop Depth</th>
-                                            <th>Spill Cost</th>
-                                            <th>Degree</th>
-                                            <th>GNN Reg</th>
-                                            <th>Chaitin Reg</th>
+                                            <th>Var</th>
+                                            <th>Loop</th>
+                                            <th>Cost</th>
+                                            <th>Deg</th>
+                                            <th>Active Reg</th>
+                                            <th>Spill Prob</th>
+                                            <th>Confidence</th>
                                         </tr>
                                     </thead>
                                     <tbody id="table-node-body">
@@ -146,34 +203,40 @@
                                 </table>
                             </div>
                         </div>
+
+                        <!-- Agent Pattern Diagnostics Tab -->
+                        <div id="tab-patterns" class="tab-pane">
+                            <div id="patterns-container" class="patterns-container">
+                                <!-- Dynamic explanation cards injected here -->
+                            </div>
+                        </div>
+
+                        <!-- Agreement Matrix Tab -->
+                        <div id="tab-agreement" class="tab-pane">
+                            <div id="agreement-container" class="agreement-container">
+                                <!-- Dynamic agreement table injected here -->
+                            </div>
+                        </div>
+
+                        <!-- TAC IR Tab -->
+                        <div id="tab-ir" class="tab-pane">
+                            <pre class="code-block"><code id="code-tac">// TAC Instructions will load here...</code></pre>
+                            <div id="tac-allocation-summary" class="tac-allocation-summary"></div>
+                        </div>
+
+                        <!-- CFG Tab -->
+                        <div id="tab-cfg" class="tab-pane">
+                            <div id="cfg-blocks-container" class="cfg-container">
+                                <!-- CFG Basic blocks rendered here -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Algorithm Theoretical Overview Section -->
-            <section class="panel glass theory-section">
-                <h2><i class="fa-solid fa-book-open"></i> GNN Register Allocation & Spill Coalescing Theory</h2>
-                <div class="theory-grid">
-                    <div class="theory-card">
-                        <h3><i class="fa-solid fa-network-wired"></i> Multi-Relational Graph Formulation</h3>
-                        <p>The compiler program is modeled as a multi-relational graph $G = (V, E_{\text{interf}}, E_{\text{coal}})$. <strong>Interference Edges</strong> enforce non-conflicting physical register assignments ($c_u \ne c_v$), while <strong>Coalescing Edges</strong> represent move instruction affinity ($v_{\text{dst}} \leftarrow v_{\text{src}}$) to eliminate move overhead.</p>
-                    </div>
-                    <div class="theory-card">
-                        <h3><i class="fa-solid fa-brain"></i> Relational GNN Architecture</h3>
-                        <p>Node representations are updated via a 3-layer Relational GCN:
-                        $$H^{(l+1)} = \sigma \left( H^{(l)} W_{\text{self}} + \hat{A}_{\text{interf}} H^{(l)} W_{\text{interf}} + \hat{A}_{\text{coal}} H^{(l)} W_{\text{coal}} \right)$$
-                        Predicts physical register class $(R_0 \dots R_{K-1})$ or Spill class.</p>
-                    </div>
-                    <div class="theory-card">
-                        <h3><i class="fa-solid fa-scale-balanced"></i> Graph Coloring Conflict Loss</h3>
-                        <p>Trained using Cross-Entropy combined with a differentiable soft graph coloring penalty loss:
-                        $$\mathcal{L}_{\text{conflict}} = \sum_{(u,v) \in E_{\text{interf}}} \sum_{k=0}^{K-1} P(c_u = k) \cdot P(c_v = k)$$</p>
-                    </div>
-                </div>
-            </section>
         </main>
     </div>
 
-    <script src="app.js"></script>
+    <script src="embedded_data.js?v=20261007_v6"></script>
+    <script src="app.js?v=20261007_v6"></script>
 </body>
 </html>
