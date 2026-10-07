@@ -111,7 +111,7 @@ This is a **four-member group project** for our compiler design and machine lear
 </tr>
 <tr>
   <td align="center">
-    <b>Nitin Rohilla</b><br/>
+    <b>Nitin</b><br/>
     <sub>Team Member 4</sub>
   </td>
   <td align="center">📈 PressureAgent (GCN)</td>
@@ -224,7 +224,7 @@ Graph Neural Network/
 │   ├── rgcn_agent.py          #   RelationalAgent  (Divyanjali Tyagi)
 │   ├── gat_agent.py           #   AttentionAgent   (Ishita Duggal)
 │   ├── sage_agent.py          #   NeighbourhoodAgent (Prem Chand)
-│   ├── gcn_agent.py           #   PressureAgent    (Nitin Rohilla)
+│   ├── gcn_agent.py           #   PressureAgent    (Nitin)
 │   ├── consensus.py           #   Confidence-weighted Consensus Arbiter
 │   └── registry.py            #   Agent factory & checkpoint loader
 │
@@ -614,7 +614,7 @@ authors before redistributing or reusing the code.
 
 <div align="center">
 
-**Built with ❤️ by Divyanjali Tyagi · Ishita Duggal · Prem Chand · Nitin Rohilla**
+**Built with ❤️ by Divyanjali Tyagi · Ishita Duggal · Prem Chand · Nitin**
 
 *Graph Neural Networks · Compiler Design · Register Allocation · Multi-Agent Systems*
 
