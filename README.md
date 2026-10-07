@@ -12,6 +12,7 @@ and an interactive browser dashboard.
 ## Contents
 
 - [Overview](#overview)
+- [Group project and team](#group-project-and-team)
 - [Models, agents, and baselines](#models-agents-and-baselines)
 - [How the pipeline works](#how-the-pipeline-works)
 - [Repository layout](#repository-layout)
@@ -37,6 +38,24 @@ control-flow graph (CFG), computes liveness, and builds an interference graph.
 Neural allocators and classical heuristics can then propose assignments. The
 project also includes conflict-repair helpers, benchmark metrics, model
 comparisons, and a static web dashboard for exploring exported results.
+
+## Group project and team
+
+This is a **four-member group project**. The table below proposes a clear
+division of responsibility based on the project's four specialist agents.
+Replace `Team Member 1` through `Team Member 4` with your teammates' names.
+
+| Team member | Project focus | Main contribution |
+| --- | --- | --- |
+| **Team Member 1 — [Name]** | Relational agent (R-GCN) | Work on the R-GCN agent, relational graph features, and move/coalescing pattern analysis. |
+| **Team Member 2 — [Name]** | Attention agent (GAT) | Work on the GAT agent, attention-based graph analysis, and interference pressure insights. |
+| **Team Member 3 — [Name]** | Neighborhood agent (GraphSAGE) | Work on the GraphSAGE agent, neighborhood features, hubs, and dense-subgraph analysis. |
+| **Team Member 4 — [Name]** | Pressure agent (GCN) | Work on the GCN agent, graph-wide pressure and loop-hot features, and integration with the Consensus Arbiter. |
+
+The team shares responsibility for testing, evaluation, documentation, and
+integrating the agents with the compiler pipeline and dashboard. The table is
+a suggested ownership map; update it to reflect the team's actual
+contributions.
 
 ## Models, agents, and baselines
 
