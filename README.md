@@ -1,323 +1,621 @@
-# Graph Neural Network Register Allocation
+<div align="center">
 
-An educational compiler and machine-learning project exploring graph neural
-networks (GNNs) for register allocation, spill prediction, and move coalescing.
-It includes a Python compiler pipeline, specialist prediction agents, a
-confidence-weighted consensus arbiter, classical baselines, model comparisons,
-and an interactive browser dashboard.
+# 🧠 Multi-Agent GNN Register Allocation
 
-> **Project status:** This is a research and learning prototype. The main
-> workflow uses synthetic compiler IR and is not a production compiler backend.
+### *Predicting Register Spill & Coalescing with Graph Neural Networks*
 
-## Contents
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![NetworkX](https://img.shields.io/badge/NetworkX-3.0%2B-0095D5?style=for-the-badge)](https://networkx.org/)
+[![Tests](https://img.shields.io/badge/Tests-Pytest-6366F1?style=for-the-badge&logo=pytest&logoColor=white)](https://pytest.org/)
 
-- [Overview](#overview)
-- [Group project and team](#group-project-and-team)
-- [Models, agents, and baselines](#models-agents-and-baselines)
-- [How the pipeline works](#how-the-pipeline-works)
-- [Repository layout](#repository-layout)
-- [Setup](#setup)
-- [Run tests](#run-tests)
-- [CLI workflows](#cli-workflows)
-- [Launch the dashboard](#launch-the-dashboard)
-- [Understanding dashboard results](#understanding-dashboard-results)
-- [Additional Java and ML workflow](#additional-java-and-ml-workflow)
-- [Limitations](#limitations)
+<br/>
 
-## Overview
+> **A research and educational compiler + ML project** that uses four specialist Graph Neural Network agents and a confidence-weighted Consensus Arbiter to solve the classic NP-hard register allocation problem — complete with a live interactive browser dashboard.
 
-Register allocation maps compiler virtual registers (program values) to a
-limited set of physical registers. Two values that are live at the same time
-interfere and cannot be assigned the same physical register. When the
-registers are insufficient, values may be **spilled** to memory. If a `MOVE`
-instruction copies one value to another, assigning both values the same
-register can sometimes **coalesce** and remove that move.
+<br/>
 
-The main Python workflow generates three-address code (TAC), constructs a
-control-flow graph (CFG), computes liveness, and builds an interference graph.
-Neural allocators and classical heuristics can then propose assignments. The
-project also includes conflict-repair helpers, benchmark metrics, model
-comparisons, and a static web dashboard for exploring exported results.
+[🚀 Quick Start](#-quick-start) · [📊 Dashboard](#-launch-the-dashboard) · [🧬 Architecture](#-architecture) · [👥 Team](#-team) · [📖 Docs](#-cli-reference)
 
-## Group project and team
+</div>
 
-This is a **four-member group project**. The table below proposes a clear
-division of responsibility based on the project's four specialist agents.
-Replace `Team Member 1` through `Team Member 4` with your teammates' names.
+---
 
-| Team member | Project focus | Main contribution |
-| --- | --- | --- |
-| **Team Member 1 — [Divyanjali Tyagi ]** | Relational agent (R-GCN) | Work on the R-GCN agent, relational graph features, and move/coalescing pattern analysis. |
-| **Team Member 2 — [Ishita Duggal]** | Attention agent (GAT) | Work on the GAT agent, attention-based graph analysis, and interference pressure insights. |
-| **Team Member 3 — [Prem Chand]** | Neighborhood agent (GraphSAGE) | Work on the GraphSAGE agent, neighborhood features, hubs, and dense-subgraph analysis. |
-| **Team Member 4 — [Nitin ]** | Pressure agent (GCN) | Work on the GCN agent, graph-wide pressure and loop-hot features, and integration with the Consensus Arbiter. |
+## 📌 Table of Contents
 
-The team shares responsibility for testing, evaluation, documentation, and
-integrating the agents with the compiler pipeline and dashboard. The table is
-a suggested ownership map; update it to reflect the team's actual
-contributions.
+- [Overview](#-overview)
+- [Team](#-team)
+- [Architecture](#-architecture)
+- [Models, Agents & Baselines](#-models-agents--baselines)
+- [Repository Layout](#-repository-layout)
+- [Quick Start](#-quick-start)
+- [Run Tests](#-run-tests)
+- [CLI Reference](#-cli-reference)
+- [Launch the Dashboard](#-launch-the-dashboard)
+- [Understanding Dashboard Results](#-understanding-dashboard-results)
+- [Pipeline Deep Dive](#-pipeline-deep-dive)
+- [Results & Metrics](#-results--metrics)
+- [Limitations](#-limitations)
 
-## Models, agents, and baselines
+---
 
-There are two related but distinct neural workflows:
+## 🔬 Overview
 
-| Component | Type | Purpose |
-| --- | --- | --- |
-| **R-GCN** | Relational GNN architecture and specialist agent | Relational message passing; in the agent workflow, focuses on move chains and affinity edges |
-| **R-GAT** | Relational GNN architecture | Attention-based message passing over graph relations |
-| **R-SAGE** | Relational GNN architecture | Mean neighborhood aggregation over graph relations |
-| **R-GIN** | Relational GNN architecture | Relation-aware sum aggregation and MLP updates |
-| **GAT** | Specialist agent architecture | Looks at attention and neighborhood pressure |
-| **GraphSAGE** | Specialist agent architecture | Looks at local neighborhoods, hubs, and dense subgraphs |
-| **GCN** | Specialist agent architecture | Looks at global interference pressure and loop-hot variables |
+**Register Allocation** is one of the most critical and computationally hard phases in a compiler backend. It maps unlimited virtual registers (program values) to a small, fixed set of physical CPU registers. When registers are exhausted, values must be **spilled** to memory — which is expensive at runtime.
 
-The four relational architectures are **R-GCN, R-GAT, R-SAGE, and R-GIN**.
-The four specialist agents are **R-GCN, GAT, GraphSAGE, and GCN**. These are
-different groupings for training and comparison; some names overlap.
+This project tackles register allocation with a **multi-agent GNN ensemble**:
 
-Other dashboard strategies are not additional GNN architectures:
+| Challenge | Our Approach |
+|-----------|-------------|
+| NP-hard coloring | GNN-guided soft decisions |
+| Diverse graph patterns | 4 specialized agents, each tuned to a different graph signal |
+| Single-model blind spots | Confidence-weighted Consensus Arbiter combines all agents |
+| Move instruction overhead | Coalescing edge analysis to eliminate redundant `MOVE`s |
+| Classical baseline comparison | Chaitin-Briggs heuristic + Random allocator included |
 
-- **Consensus Arbiter** combines the specialist agents' confidence-weighted
-  predictions. It is an ensemble decision-maker, not a separately trained GNN.
-- **Chaitin-Briggs** is a classical graph-coloring heuristic and serves as a
-  non-AI baseline.
-- **Random** is a simple randomized baseline.
+The full pipeline covers:
+- **Three-Address Code (TAC)** IR generation
+- **Control Flow Graph (CFG)** construction & liveness analysis
+- **Multi-Relational Interference Graph** with interference + coalescing edges
+- **Four relational GNN architectures**: R-GCN, R-GAT, R-SAGE, R-GIN
+- **Four specialist pattern agents**: RelationalAgent, AttentionAgent, NeighbourhoodAgent, PressureAgent
+- **Confidence-Weighted Consensus Arbiter** (ensemble decision-maker)
+- **Conflict repair**, benchmark metrics, and model comparison tooling
+- **Interactive browser dashboard** with force-layout graph visualization
 
-Which model buttons appear in the dashboard depends on the dataset loaded.
+---
 
-## How the pipeline works
+## 👥 Team
 
-1. Generate a TAC program and derive its basic blocks and control flow.
-2. Compute liveness and construct interference and move/coalescing edges.
-3. Run the selected GNN model or the specialist agents on the graph.
-4. Optionally combine agent predictions with confidence-weighted consensus.
-5. Repair invalid register conflicts where configured and compare with
-   classical baselines.
-6. Export assignments and diagnostics for evaluation or dashboard display.
+This is a **four-member group project** for our compiler design and machine learning course.
 
-## Repository layout
+<table>
+<tr>
+  <th align="center">Member</th>
+  <th align="center">Agent Ownership</th>
+  <th align="center">Architecture</th>
+  <th align="center">Key Responsibilities</th>
+</tr>
+<tr>
+  <td align="center">
+    <b>Divyanjali Tyagi</b><br/>
+    <sub>Team Member 1</sub>
+  </td>
+  <td align="center">🔗 RelationalAgent (R-GCN)</td>
+  <td align="center"><code>agents/rgcn_agent.py</code></td>
+  <td>
+    R-GCN multi-relational message passing, move-chain detection, affinity-edge feature engineering, coalescing pattern analysis
+  </td>
+</tr>
+<tr>
+  <td align="center">
+    <b>Ishita Duggal</b><br/>
+    <sub>Team Member 2</sub>
+  </td>
+  <td align="center">👁️ AttentionAgent (GAT)</td>
+  <td align="center"><code>agents/gat_agent.py</code></td>
+  <td>
+    GAT attention-weight analysis, interference pressure scoring, top-attended neighbor diagnostics, attention-matrix visualization
+  </td>
+</tr>
+<tr>
+  <td align="center">
+    <b>Prem Chand</b><br/>
+    <sub>Team Member 3</sub>
+  </td>
+  <td align="center">🕸️ NeighbourhoodAgent (GraphSAGE)</td>
+  <td align="center"><code>agents/sage_agent.py</code></td>
+  <td>
+    GraphSAGE neighborhood sampling, hub-node detection, dense-subgraph / k-core analysis, forcing clique identification
+  </td>
+</tr>
+<tr>
+  <td align="center">
+    <b>Nitin Rohilla</b><br/>
+    <sub>Team Member 4</sub>
+  </td>
+  <td align="center">📈 PressureAgent (GCN)</td>
+  <td align="center"><code>agents/gcn_agent.py</code></td>
+  <td>
+    GCN global interference pressure, loop-hot variable analysis, pressure-peak detection, Consensus Arbiter integration & pipeline coordination
+  </td>
+</tr>
+</table>
 
-| Path | Contents |
-| --- | --- |
-| `main.py` | Entry point for training, evaluation, generation, and export |
-| `compiler/` | TAC IR, CFG, liveness, interference graphs, and Chaitin-Briggs allocation |
-| `dataset/` | Synthetic program generation and graph datasets |
-| `agents/` | Specialist agents, checkpoint registry, and consensus arbiter |
-| `models/` | Relational GNN architectures, training, and allocation repair |
-| `evaluation/` | Benchmarks, metrics, comparisons, and feature ablations |
-| `tests/` | Python test suite |
-| `web/` | Static interactive dashboard and exported JSON datasets |
-| `gnn-regalloc/` | Separate Java compiler and Python ML workflow |
-| `report/`, `docs/`, `results/` | Reports, baseline notes, and generated results |
+> The team shares responsibility for testing, evaluation, documentation, the dashboard, and integrating all agents with the compiler pipeline.
 
-The root `requirements.txt` belongs to the main Python project. The
-`gnn-regalloc/requirements.txt` file belongs to the separate nested workflow.
+---
 
-## Setup
+## 🧬 Architecture
 
-Use Python from the repository root. A virtual environment is recommended:
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        COMPILER PIPELINE                                │
+│                                                                         │
+│   TAC IR Generator → CFG Builder → Liveness Analyzer → IG Constructor  │
+│        ir.py              cfg.py       liveness.py   interference_graph │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │
+                    Multi-Relational Interference Graph
+                   (Nodes: Virtual Regs | Edges: Interference + Coalescing)
+                                 │
+              ┌──────────────────┴──────────────────┐
+              │         SPECIALIST AGENTS           │
+              │                                     │
+    ┌─────────┴────────┐            ┌───────────────┴──────────────┐
+    │  Relational (R-GCN)│         │  Attention (GAT)              │
+    │  Move-chain focus │           │  Pressure attention focus     │
+    └─────────┬────────┘            └───────────────┬──────────────┘
+    ┌─────────┴────────┐            ┌───────────────┴──────────────┐
+    │  Neighbourhood    │           │  Pressure (GCN)               │
+    │  (GraphSAGE)      │           │  Global register pressure     │
+    └─────────┬────────┘            └───────────────┬──────────────┘
+              │                                     │
+              └──────────────────┬──────────────────┘
+                                 │
+                    ╔════════════╧════════════╗
+                    ║   CONSENSUS ARBITER     ║
+                    ║  Confidence-weighted    ║
+                    ║  soft-voting ensemble   ║
+                    ╚════════════╤════════════╝
+                                 │
+              ┌──────────────────┴──────────────────┐
+              │     Conflict Repair + Evaluation     │
+              │   repair.py, evaluator.py, metrics   │
+              └──────────────────┬──────────────────┘
+                                 │
+              ┌──────────────────┴──────────────────┐
+              │      Interactive Web Dashboard       │
+              │   web/index.html + web/app.js        │
+              └─────────────────────────────────────┘
+```
+
+---
+
+## 🤖 Models, Agents & Baselines
+
+There are **two related-but-distinct** GNN workflows in this project:
+
+### Relational GNN Architectures *(training & comparison)*
+
+| Architecture | File | Key Idea |
+|---|---|---|
+| **R-GCN** | `models/gnn_allocator.py` | Relation-specific weight matrices for interference + coalescing message passing |
+| **R-GAT** | `models/rgat_allocator.py` | Learned attention weights per relation type |
+| **R-SAGE** | `models/rsage_allocator.py` | Mean neighborhood aggregation per relation |
+| **R-GIN** | `models/gin_allocator.py` | Sum aggregation + relation-specific MLP updates for maximum expressive power |
+
+### Specialist Pattern Agents *(multi-agent ensemble)*
+
+| Agent | File | Pattern Focus |
+|---|---|---|
+| **RelationalAgent** (R-GCN) | `agents/rgcn_agent.py` | Move chains, coalescing affinity edges, relational edge ratios |
+| **AttentionAgent** (GAT) | `agents/gat_agent.py` | Inward attention pressure, top interfering neighbors forcing spills |
+| **NeighbourhoodAgent** (GraphSAGE) | `agents/sage_agent.py` | Hub nodes, dense subgraphs, k-cores, forcing cliques |
+| **PressureAgent** (GCN) | `agents/gcn_agent.py` | Global pressure peaks, loop-hot variables, choking-point detection |
+
+### Ensemble & Baselines
+
+| Component | Type | Description |
+|---|---|---|
+| **Consensus Arbiter** | `agents/consensus.py` | Two-stage confidence-weighted soft-voting across all 4 agents |
+| **Chaitin-Briggs** | `compiler/chaitin_briggs.py` | Classical Kempe-chain graph-coloring with optimistic spilling |
+| **Random** | `models/trainer.py` | Uniform random register assignment — lower-bound baseline |
+
+---
+
+## 📁 Repository Layout
+
+```
+Graph Neural Network/
+│
+├── main.py                    # 🚀 CLI entry point — train, evaluate, export, compare
+│
+├── compiler/                  # 📦 Compiler pipeline
+│   ├── ir.py                  #   Three-address code IR & TAC generator
+│   ├── cfg.py                 #   Control flow graph builder
+│   ├── liveness.py            #   Liveness analysis (live-in / live-out)
+│   ├── interference_graph.py  #   Interference + coalescing graph builder
+│   ├── chaitin_briggs.py      #   Classical heuristic allocator baseline
+│   └── export.py              #   JSON export for dashboard
+│
+├── agents/                    # 🤖 Specialist pattern agents
+│   ├── base.py                #   Abstract agent base class
+│   ├── rgcn_agent.py          #   RelationalAgent  (Divyanjali Tyagi)
+│   ├── gat_agent.py           #   AttentionAgent   (Ishita Duggal)
+│   ├── sage_agent.py          #   NeighbourhoodAgent (Prem Chand)
+│   ├── gcn_agent.py           #   PressureAgent    (Nitin Rohilla)
+│   ├── consensus.py           #   Confidence-weighted Consensus Arbiter
+│   └── registry.py            #   Agent factory & checkpoint loader
+│
+├── models/                    # 🧠 Relational GNN architectures
+│   ├── gnn_allocator.py       #   R-GCN architecture
+│   ├── rgat_allocator.py      #   R-GAT architecture
+│   ├── rsage_allocator.py     #   R-SAGE architecture
+│   ├── gin_allocator.py       #   R-GIN architecture
+│   ├── base_allocator.py      #   Shared base model
+│   ├── repair.py              #   Conflict repair heuristics
+│   └── trainer.py             #   Training loop, random baseline
+│
+├── dataset/                   # 📊 Synthetic program generation
+│   ├── generator.py           #   TAC program generator
+│   └── dataset.py             #   Graph dataset builder
+│
+├── evaluation/                # 📈 Benchmarking & metrics
+│   ├── evaluator.py           #   Multi-model evaluator
+│   ├── metrics.py             #   Spill cost, move elimination, validity metrics
+│   └── model_comparator.py    #   Cross-architecture comparison & report
+│
+├── tests/                     # ✅ Pytest test suite
+│   ├── test_agents.py
+│   ├── test_consensus.py
+│   ├── test_relational_models.py
+│   ├── test_chaitin.py
+│   ├── test_compiler.py
+│   ├── test_end_to_end.py
+│   ├── test_gnn.py
+│   └── test_repair.py
+│
+├── web/                       # 🌐 Interactive browser dashboard
+│   ├── index.html             #   Dashboard UI
+│   ├── app.js                 #   Force-layout graph engine + tab rendering
+│   ├── style.css              #   Dark glassmorphism UI styles
+│   ├── data.json              #   Multi-agent dataset (main run)
+│   ├── comparison_data.json   #   Architecture comparison dataset
+│   └── embedded_data.js       #   Auto-generated for offline/file:// rendering
+│
+├── checkpoints/               # 💾 Saved agent model weights
+├── results/                   # 📋 Generated evaluation results
+├── report/                    # 📑 Comparison plots & markdown reports
+├── docs/                      # 📚 Supplementary documentation
+├── gnn-regalloc/              # 🔗 Separate Java + PyG ML sub-workflow
+├── gnn_allocator.pt           # 🏆 Trained model checkpoint
+└── requirements.txt           # 📦 Python dependencies
+```
+
+---
+
+## 🚀 Quick Start
+
+### 1. Clone & Set Up Environment
 
 ```bash
+git clone https://github.com/nitinrohilla-05/Graph-Neural-Network-Registrer-Allocation-to-predict-regisster-spill-coalescing-.git
+cd Graph-Neural-Network-Registrer-Allocation-to-predict-regisster-spill-coalescing-
+```
+
+Create and activate a virtual environment:
+
+```bash
+# Create venv
 python -m venv .venv
-```
 
-Activate in PowerShell:
-
-```powershell
+# Activate — Windows PowerShell
 .\.venv\Scripts\Activate.ps1
-```
 
-Or activate in a POSIX shell:
-
-```bash
+# Activate — macOS / Linux
 source .venv/bin/activate
 ```
 
-Install the root project dependencies:
+### 2. Install Dependencies
 
 ```bash
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Dependencies include PyTorch, NetworkX, Matplotlib, scikit-learn, NumPy, and
-pytest. PyTorch installation can vary by operating system and accelerator; use
-the official PyTorch installation selector if the default package is not
-appropriate for your machine.
+> **PyTorch Note:** If the default `torch` wheel does not match your GPU/OS, use the official [PyTorch installation selector](https://pytorch.org/get-started/locally/) to get the correct CUDA-enabled wheel before installing the rest.
 
-## Run tests
+### 3. Verify Installation
 
-Run all tests from the repository root:
+```bash
+python -m pytest tests/ -v --tb=short
+```
+
+### 4. Run the Full Pipeline (One Command)
+
+```bash
+# Train agents → export dashboard data → launch browser dashboard
+python main.py --mode train-agents --quick --checkpoint-dir checkpoints
+python main.py --mode export-web-data --registers 4
+python -m http.server 8000 --directory web
+# → Open http://localhost:8000
+```
+
+---
+
+## ✅ Run Tests
+
+Run the full test suite:
 
 ```bash
 python -m pytest
 ```
 
-Run one focused test module:
+Run specific modules:
 
 ```bash
-python -m pytest tests/test_agents.py
+python -m pytest tests/test_agents.py -v          # Agent tests
+python -m pytest tests/test_consensus.py -v       # Consensus arbiter tests
+python -m pytest tests/test_relational_models.py -v  # GNN architecture tests
+python -m pytest tests/test_compiler.py -v        # Compiler pipeline tests
+python -m pytest tests/test_end_to_end.py -v      # Full end-to-end tests
 ```
 
-Passing tests verify the tested project behavior; they do not establish that
-the allocator will improve performance on real-world compiler workloads.
-
-## CLI workflows
-
-Use `python main.py --help` to see available options. The most commonly used
-commands are below.
-
-### Train a relational architecture
+Run with concise output:
 
 ```bash
+python -m pytest --tb=short -q
+```
+
+---
+
+## 📖 CLI Reference
+
+Use `python main.py --help` to see all flags.
+
+### Train a Relational Architecture
+
+```bash
+# Train R-GCN (default)
 python main.py --mode train --model rgcn --epochs 20 --samples 60 --registers 4
+
+# Train other architectures
+python main.py --mode train --model rgat --epochs 20
+python main.py --mode train --model rsage --epochs 20
+python main.py --mode train --model gin --epochs 20
+
+# Custom output checkpoint path
+python main.py --mode train --model rgcn --output checkpoints/rgcn_v2.pt
 ```
 
-Choose `rgcn`, `rgat`, `rsage`, or `gin` with `--model`. By default, training
-writes the checkpoint to `gnn_allocator.pt`; use `--output` to select a
-different location.
-
-### Train and evaluate specialist agents
-
-Quick CPU smoke run:
+### Train & Evaluate Specialist Agents
 
 ```bash
+# Quick CPU smoke run (reduced samples/epochs)
 python main.py --mode train-agents --quick --checkpoint-dir checkpoints
 python main.py --mode evaluate-agents --quick
-```
 
-Custom training run:
-
-```bash
+# Full training run
 python main.py --mode train-agents --samples 60 --epochs 20 --registers 4 --checkpoint-dir checkpoints
-```
 
-Generate an agent report:
-
-```bash
+# Generate agent diagnostics report
 python main.py --mode agents-report --quick
+# → Writes results/agents_results.json & results/agents_results.md
 ```
 
-The report workflow writes files such as `results/agents_results.json` and
-`results/agents_results.md`.
-
-### Compare models
-
-Compare the architectures and baselines:
+### Compare All Models
 
 ```bash
+# Quick comparison (single program)
 python main.py --mode compare-models --registers 4
-```
 
-Aggregate a comparison over multiple generated programs:
-
-```bash
+# Aggregate over multiple generated programs
 python main.py --mode compare-models --samples 20 --registers 4
+# → Writes web/comparison_data.json & report/model_comparison.png
 ```
 
-The comparison workflow exports `web/comparison_data.json` and writes a
-comparison plot under `report/`.
-
-### Export graph data
-
-Export the multi-agent dashboard dataset:
+### Export Dashboard Data
 
 ```bash
+# Export multi-agent web visualizer dataset
 python main.py --mode export-web-data --registers 4
-```
+# → Writes web/data.json & web/embedded_data.js
 
-Export raw synthetic graphs:
-
-```bash
+# Export raw synthetic graph samples
 python main.py --mode export-json --samples 60 --registers 4
 ```
 
-### Available modes
+### All Available Modes
 
-| Mode | Purpose |
-| --- | --- |
-| `train` | Train one relational GNN architecture |
+| Mode | Description |
+|------|-------------|
+| `train` | Train one relational GNN architecture (R-GCN / R-GAT / R-SAGE / R-GIN) |
 | `evaluate` | Benchmark a model checkpoint against allocator baselines |
-| `run-compiler` | Run the generated compiler allocation demonstration |
-| `export-web-data` | Export multi-agent graph data for the dashboard |
-| `export-json` | Export generated graph samples |
-| `model-comparison` | Run multi-seed architecture comparison |
-| `ablation` | Evaluate feature ablations |
-| `train-agents` | Train the specialist-agent checkpoints |
-| `evaluate-agents` | Evaluate agents and consensus |
-| `agents-report` | Generate agent result files |
-| `compare-models` | Compare relational architectures and baselines |
+| `run-compiler` | Run the compiler allocation demo |
+| `export-web-data` | Export multi-agent data for the interactive dashboard |
+| `export-json` | Export raw synthetic graph samples as JSON |
+| `model-comparison` | Multi-seed architecture comparison study |
+| `ablation` | Feature ablation evaluation |
+| `train-agents` | Train all four specialist agent checkpoints |
+| `evaluate-agents` | Evaluate agents and the Consensus Arbiter |
+| `agents-report` | Generate full agent result files |
+| `compare-models` | Compare relational architectures + baselines |
 
-Important options include `--registers` (default `4`), `--samples` (default
-`60`), `--epochs` (default `20`), `--hidden-dim` (default `64`), `--seed`
-(default `42`), `--model`, `--agent`, `--checkpoint-dir`, and `--model-path`.
-Keep program data, seed, register count, checkpoints, and repair behavior
-consistent when comparing results.
+### Key CLI Flags
 
-## Launch the dashboard
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--model` | `rgcn` | GNN architecture: `rgcn`, `rgat`, `rsage`, `gin` |
+| `--registers` | `4` | Number of physical registers K |
+| `--samples` | `60` | Number of synthetic programs |
+| `--epochs` | `20` | Training epochs |
+| `--hidden-dim` | `64` | GNN hidden dimension |
+| `--seed` | `42` | Random seed for reproducibility |
+| `--checkpoint-dir` | `checkpoints` | Directory to load/save agent checkpoints |
+| `--model-path` | `gnn_allocator.pt` | Path to model checkpoint |
+| `--quick` | — | Use reduced samples/epochs for fast testing |
 
-The dashboard is a static web app in `web/`. Start a local server at the
-repository root:
+> ⚠️ Keep `--registers`, `--seed`, and `--checkpoint-dir` consistent when comparing results across runs.
+
+---
+
+## 🌐 Launch the Dashboard
+
+The dashboard is a fully static web app — no backend server required for the embedded data.
+
+### Option A: Local HTTP Server (Recommended for Fresh Data)
 
 ```bash
 python -m http.server 8000 --directory web
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in a browser. The checked-in
-JSON files provide example data. To display a fresh multi-agent run, export
-the web data first, then refresh the page.
+Open **[http://localhost:8000](http://localhost:8000)** in any modern browser.
 
-| File | Dashboard data |
-| --- | --- |
-| `web/data.json` | Multi-agent graph, assignments, and diagnostics |
-| `web/comparison_data.json` | Cross-architecture comparison graph and metrics |
-| `web/embedded_data.js` | Embedded datasets used for file/offline rendering |
+### Option B: Direct File Access (Offline Mode)
 
-Use **Load Comparison Run** to switch between the multi-agent and
-architecture-comparison datasets.
+Simply open `web/index.html` directly in Chrome or Firefox. The `embedded_data.js` file provides instant offline rendering without a server.
 
-## Understanding dashboard results
+### Dashboard Data Files
 
-- **Graph nodes** represent virtual registers. Interference edges connect
-  values that cannot share a register; coalescing edges represent move
-  relationships.
-- **Node colors** show the selected allocator's register assignment or spill
-  decision.
-- **Agent Patterns** displays available specialist diagnostics and a summary
-  for the selected allocator.
-- **Agreement Matrix** compares the selected allocator with others and may
-  also show dataset-level pairwise matrices. Exact register agreement is
-  stricter than agreement on spill versus non-spill decisions.
-- **TAC IR** shows the program instructions and the selected allocator's
-  per-variable assignment summary.
-- **CFG** shows basic blocks and their successors when that dataset includes
-  CFG information.
+| File | Contents |
+|------|----------|
+| `web/data.json` | Multi-agent assignments, spill probs, confidence, disagreements |
+| `web/comparison_data.json` | Cross-architecture comparison graph and agreement matrices |
+| `web/embedded_data.js` | Auto-generated embedded datasets for offline/file:// access |
 
-Agreement measures whether two allocators made the same decisions, not
-whether those decisions are optimal. A low spill count alone does not prove
-that an allocation is valid or faster; consider conflict validity, spill cost,
-move elimination, and evaluation conditions together.
+Refresh dashboard data by running:
 
-## Additional Java and ML workflow
+```bash
+python main.py --mode export-web-data
+python main.py --mode compare-models
+```
 
-`gnn-regalloc/` is a separate workflow with Java compiler-side components and
-a Python/PyTorch-geometric ML side. Its setup and reproduction steps are
-documented in [`gnn-regalloc/README.md`](gnn-regalloc/README.md). Use its
-nested `requirements.txt` only when working on that project.
+Then reload the page.
 
-## Limitations
+---
 
-- The main generator uses synthetic TAC programs; behavior may not generalize
-  to real-world compiler workloads.
-- Results depend on the generated program, training data, checkpoint,
-  hyperparameters, register count, and conflict-repair settings.
-- Chaitin-Briggs and Random are baselines, not neural architectures.
-- Dashboard JSON is an exported snapshot and only changes when it is
-  regenerated or another dataset is selected.
-- The nested `gnn-regalloc/` project is a separate workflow and should not be
-  confused with the root Python CLI.
+## 📊 Understanding Dashboard Results
 
-For implementation and evaluation details, see [`report/`](report/),
-[`docs/baseline_results.md`](docs/baseline_results.md), and
-[`gnn-regalloc/report/`](gnn-regalloc/report/). The more detailed companion
-guide is [PROJECT_GUIDE.md](PROJECT_GUIDE.md).
+### Panels & Tabs
+
+| Panel | What It Shows |
+|-------|--------------|
+| **Multi-Relational Interference Graph** | Force-layout canvas. Nodes = virtual registers. Red edges = interference. Green dashed = coalescing/move edges. Hover nodes for full diagnostics. Drag to reposition. Scroll to zoom. |
+| **Register Table** | Per-variable assignments, loop depth, spill cost, interference degree, spill probability, and confidence — for the active allocator |
+| **Agent Patterns** | Specialist agent diagnostics: move chains (RelationalAgent), top-pressure nodes (AttentionAgent), hub nodes & k-cores (NeighbourhoodAgent), loop-hot variables (PressureAgent) |
+| **Agreement Matrix** | Pairwise register assignment agreement, spill decision concordance, and coalescing Jaccard overlap across all model pairs |
+| **TAC IR** | Full three-address code instruction listing for the compiled program |
+| **CFG** | Basic blocks with loop depths and successor edges |
+
+### Node Color Legend
+
+| Color | Meaning |
+|-------|---------|
+| 🔵 Blue | Assigned to **R0** |
+| 🟢 Green | Assigned to **R1** |
+| 🟡 Amber | Assigned to **R2** |
+| 🩷 Pink | Assigned to **R3** |
+| 🔴 Red | **SPILLED** to stack memory |
+| 🟠 Orange ring | **Disagreement** — models disagree on this variable |
+
+### Switching Datasets
+
+Use the **"Load Comparison Run"** button in the top bar to toggle between:
+- **Multi-agent dataset** — `data.json` — shows Consensus, R-GCN, GAT, GraphSAGE, GCN, Chaitin-Briggs
+- **Architecture comparison** — `comparison_data.json` — shows R-GCN, R-GAT, R-SAGE, R-GIN, Chaitin-Briggs, Random
+
+> **Important:** Agreement measures whether two allocators made the *same* decisions, not whether those decisions are optimal. A low spill count alone does not prove validity — check conflict validity, spill cost, move elimination, and evaluation conditions together.
+
+---
+
+## 🔬 Pipeline Deep Dive
+
+### Step 1 — TAC Program Generation
+
+`dataset/generator.py` synthesizes random three-address code programs with configurable loop nesting, variable counts, and `MOVE` instruction density.
+
+### Step 2 — CFG Construction & Liveness
+
+`compiler/cfg.py` partitions instructions into basic blocks and links them with control-flow edges. `compiler/liveness.py` performs iterative backward dataflow to compute **live-in / live-out** sets per block.
+
+### Step 3 — Interference Graph
+
+`compiler/interference_graph.py` constructs a multi-relational graph:
+- **Interference edges** between any two variables simultaneously live
+- **Coalescing edges** between the source and destination of `MOVE` instructions
+
+### Step 4 — GNN Inference
+
+Each relational architecture processes the graph with relation-specific message passing (R-GCN / R-GAT / R-SAGE / R-GIN) to produce per-variable register assignment logits and spill probability estimates.
+
+### Step 5 — Consensus Arbiter
+
+`agents/consensus.py` gathers each specialist agent's output probability distribution and performs **two-stage confidence-weighted soft-voting** to produce a final, robust allocation decision with agreement percentages.
+
+### Step 6 — Repair & Export
+
+`models/repair.py` checks for constraint violations (two interfering variables assigned the same register) and applies lightweight heuristic fixes. Results are exported to JSON for evaluation and dashboard display.
+
+---
+
+## 📈 Results & Metrics
+
+After running `python main.py --mode agents-report`, check:
+
+| Output | Location |
+|--------|----------|
+| Agent results JSON | `results/agents_results.json` |
+| Agent report markdown | `results/agents_results.md` |
+| Model comparison plot | `report/model_comparison.png` |
+| Phase-2 agent report | `report/phase2_multi_agent.md` |
+| Baseline notes | `docs/baseline_results.md` |
+
+Key metrics computed:
+
+| Metric | Description |
+|--------|-------------|
+| **Spill Count** | Number of variables spilled to stack memory |
+| **Spill Cost** | Weighted spill cost (loop depth × base cost) |
+| **Moves Eliminated** | Number of `MOVE` instructions successfully coalesced |
+| **Move Elimination Rate** | Percentage of possible moves eliminated |
+| **Pairwise Agreement** | Exact register match % between any two model pair |
+| **Spill Concordance** | Agreement % specifically on spill vs. non-spill decisions |
+| **Coalescing Jaccard** | Overlap of eliminated MOVE sets between model pairs |
+| **Unanimous %** | Proportion of variables where all models agree |
+| **Inference Latency** | Per-model inference time in milliseconds |
+
+---
+
+## ⚠️ Limitations
+
+- **Synthetic programs only** — the TAC generator produces artificial code; results may not generalize to real-world compiler workloads.
+- **Results are program-dependent** — spill counts and agreement metrics vary with the generated program, training seed, checkpoint, hyperparameters, and register count.
+- **Chaitin-Briggs & Random are baselines** — they are not neural architectures and serve only as comparison anchors.
+- **Dashboard data is a snapshot** — the JSON files represent one exported run and only update when regenerated.
+- **`gnn-regalloc/` is a separate workflow** — the nested Java + PyTorch-Geometric project under `gnn-regalloc/` is independent and uses its own `requirements.txt`.
+- **No production backend** — this is a research/educational prototype and not a drop-in replacement for production compiler register allocators (LLVM, GCC, etc.).
+
+---
+
+## 📚 Further Reading
+
+| Resource | Description |
+|----------|-------------|
+| [`docs/baseline_results.md`](docs/baseline_results.md) | Baseline allocator evaluation notes |
+| [`report/phase2_multi_agent.md`](report/phase2_multi_agent.md) | Multi-agent design and results report |
+| [`gnn-regalloc/README.md`](gnn-regalloc/README.md) | Separate Java + PyG ML sub-workflow documentation |
+
+### Key References
+
+- Chaitin, G.J. et al. — *"Register allocation via coloring"* (1981)
+- Schlichtkrull et al. — *"Modeling Relational Data with Graph Convolutional Networks"* (R-GCN, 2018)
+- Veličković et al. — *"Graph Attention Networks"* (GAT, 2018)
+- Hamilton et al. — *"Inductive Representation Learning on Large Graphs"* (GraphSAGE, 2017)
+- Xu et al. — *"How Powerful are Graph Neural Networks?"* (GIN, 2019)
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Run tests before pushing: `python -m pytest`
+4. Open a pull request with a clear description of your changes
+
+---
+
+## 📄 License
+
+No license file is currently included in this repository. Contact the project
+authors before redistributing or reusing the code.
+
+---
+
+<div align="center">
+
+**Built with ❤️ by Divyanjali Tyagi · Ishita Duggal · Prem Chand · Nitin Rohilla**
+
+*Graph Neural Networks · Compiler Design · Register Allocation · Multi-Agent Systems*
+
+</div>
