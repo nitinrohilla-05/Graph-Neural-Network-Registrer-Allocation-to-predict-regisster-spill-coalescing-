@@ -611,11 +611,3 @@ No license file is currently included in this repository. Contact the project
 authors before redistributing or reusing the code.
 
 ---
-
-<div align="center">
-
-**Built with ❤️ by Divyanjali Tyagi · Ishita Duggal · Prem Chand · Nitin**
-
-*Graph Neural Networks · Compiler Design · Register Allocation · Multi-Agent Systems*
-
-</div>
