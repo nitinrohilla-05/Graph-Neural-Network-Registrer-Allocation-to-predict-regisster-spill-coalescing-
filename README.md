@@ -47,10 +47,10 @@ Replace `Team Member 1` through `Team Member 4` with your teammates' names.
 
 | Team member | Project focus | Main contribution |
 | --- | --- | --- |
-| **Team Member 1 — [Nitin]** | Relational agent (R-GCN) | Work on the R-GCN agent, relational graph features, and move/coalescing pattern analysis. |
+| **Team Member 1 — [Divyanjali Tyagi ]** | Relational agent (R-GCN) | Work on the R-GCN agent, relational graph features, and move/coalescing pattern analysis. |
 | **Team Member 2 — [Ishita Duggal]** | Attention agent (GAT) | Work on the GAT agent, attention-based graph analysis, and interference pressure insights. |
-| **Team Member 3 — []** | Neighborhood agent (GraphSAGE) | Work on the GraphSAGE agent, neighborhood features, hubs, and dense-subgraph analysis. |
-| **Team Member 4 — [Name]** | Pressure agent (GCN) | Work on the GCN agent, graph-wide pressure and loop-hot features, and integration with the Consensus Arbiter. |
+| **Team Member 3 — [Prem Chand]** | Neighborhood agent (GraphSAGE) | Work on the GraphSAGE agent, neighborhood features, hubs, and dense-subgraph analysis. |
+| **Team Member 4 — [Nitin ]** | Pressure agent (GCN) | Work on the GCN agent, graph-wide pressure and loop-hot features, and integration with the Consensus Arbiter. |
 
 The team shares responsibility for testing, evaluation, documentation, and
 integrating the agents with the compiler pipeline and dashboard. The table is
